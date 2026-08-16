@@ -50,7 +50,6 @@ const createMarkerIcon = (type, severity, isSelected) => {
 
 export const DisasterMarker = ({ disaster, isSelected, onClick, showRadius = true }) => {
   const {
-    id,
     title,
     type = 'other',
     severity = 'medium',
@@ -58,6 +57,11 @@ export const DisasterMarker = ({ disaster, isSelected, onClick, showRadius = tru
     longitude,
     affectedRadius = 10,
   } = disaster;
+
+  const markerIcon = useMemo(
+    () => createMarkerIcon(type, severity, isSelected),
+    [type, severity, isSelected]
+  );
 
   // Validate coordinates
   if (
@@ -78,11 +82,6 @@ export const DisasterMarker = ({ disaster, isSelected, onClick, showRadius = tru
 
   // Convert affectedRadius (km) to meters for Google Maps Circle
   const radiusInMeters = Math.max(1000, Number(affectedRadius || 10) * 1000);
-
-  const markerIcon = useMemo(
-    () => createMarkerIcon(type, severity, isSelected),
-    [type, severity, isSelected]
-  );
 
   const circleStyle = severityStyles[severity?.toLowerCase()] || severityStyles.medium;
 

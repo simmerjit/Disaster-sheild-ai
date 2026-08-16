@@ -4,6 +4,7 @@ import DisasterMap from '../components/DisasterMap';
 import DisasterSidebar from '../components/DisasterSidebar';
 import DisasterFilters from '../components/DisasterFilters';
 import DisasterDetailsModal from '../components/DisasterDetailsModal';
+import DisasterChatbot from '../components/DisasterChatbot';
 import {
   AlertTriangle,
   RefreshCw,
@@ -12,6 +13,8 @@ import {
   CloudSun,
   Route,
   Navigation,
+  Bot,
+  Sparkles,
 } from 'lucide-react';
 
 const initialFilters = {
@@ -38,6 +41,9 @@ export const DisasterMapPage = () => {
   const [facilities, setFacilities] = useState([]);
   const [facilitiesOrigin, setFacilitiesOrigin] = useState(null);
   const [showFacilitiesPanel, setShowFacilitiesPanel] = useState(false);
+
+  // AI Chatbot Assistant State
+  const [showChatbot, setShowChatbot] = useState(false);
 
   // Disaster Details Modal state
   const [detailDisaster, setDetailDisaster] = useState(null);
@@ -110,8 +116,12 @@ export const DisasterMapPage = () => {
   }, [disasters, filters]);
 
   // Filter change handlers
-  const handleFilterChange = (newFilters) => {
-    setFilters(newFilters);
+  const handleFilterChange = (keyOrObj, value) => {
+    if (typeof keyOrObj === 'string') {
+      setFilters((prev) => ({ ...prev, [keyOrObj]: value }));
+    } else if (keyOrObj && typeof keyOrObj === 'object') {
+      setFilters(keyOrObj);
+    }
   };
 
   const handleResetFilters = () => {
@@ -212,6 +222,17 @@ export const DisasterMapPage = () => {
           >
             <Route size={15} />
             <span>Evacuation Tool</span>
+          </button>
+
+          {/* AI Emergency Assistant Header Trigger */}
+          <button
+            onClick={() => setShowChatbot(!showChatbot)}
+            className={`nav-header-btn ai-assistant-header-btn ${showChatbot ? 'active' : ''}`}
+            title="Open DisasterShield AI Emergency Assistant"
+          >
+            <Bot size={15} className="ai-btn-icon" />
+            <span>AI Assistant</span>
+            <span className="ai-sparkle-dot"></span>
           </button>
 
           <div className="live-status-chip">
@@ -317,6 +338,40 @@ export const DisasterMapPage = () => {
           }}
         />
       )}
+
+      {/* Floating AI Assistant Trigger Button */}
+      <button
+        onClick={() => setShowChatbot(!showChatbot)}
+        className={`floating-ai-launcher-btn ${showChatbot ? 'active' : ''}`}
+        title="Open DisasterShield AI Emergency Assistant"
+      >
+        <div className="floating-launcher-inner">
+          <Bot size={22} className="floating-bot-icon" />
+          <span className="floating-pulse-ring"></span>
+        </div>
+        <span className="floating-btn-text">AI Assistant</span>
+      </button>
+
+      {/* DisasterShield AI Chatbot Assistant Modal */}
+      <DisasterChatbot
+        isOpen={showChatbot}
+        onClose={() => setShowChatbot(false)}
+        userCoords={userCoords}
+        selectedDisaster={selectedDisaster}
+        onOpenFacilities={(origin, facilityType) => {
+          if (origin) setFacilitiesOrigin(origin);
+          setShowFacilitiesPanel(true);
+        }}
+        onOpenWeather={(target) => {
+          setWeatherTarget(target);
+        }}
+        onOpenNavigation={() => {
+          setShowNavTool(true);
+        }}
+        onFilterDisasterType={(type) => {
+          setFilters((prev) => ({ ...prev, type }));
+        }}
+      />
     </div>
   );
 };

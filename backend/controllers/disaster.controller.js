@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { XMLParser } from 'fast-xml-parser';
 import Disaster from '../models/disaster.model.js';
 import { fetchSachetFeed } from './sachet.controller.js';
+import { disasterFeedCache } from '../utils/cache.js';
 
 // XML Parser instance for GDACS RSS feeds
 const xmlParser = new XMLParser({
@@ -217,6 +218,18 @@ const normalizeNasaEvent = (event) => {
 export const getLiveDisasters = async (req, res, next) => {
   try {
     const { limit = 50, type } = req.query;
+    const cacheKey = `gdacs_${type || 'all'}_${limit}`;
+
+    const cached = disasterFeedCache.get(cacheKey);
+    if (cached) {
+      return res.status(200).json({
+        success: true,
+        count: cached.length,
+        source: 'GDACS',
+        cached: true,
+        data: cached,
+      });
+    }
 
     const response = await fetch('https://www.gdacs.org/xml/rss.xml', {
       headers: { 'User-Agent': 'DisasterManagementApp/1.0' },
@@ -240,11 +253,13 @@ export const getLiveDisasters = async (req, res, next) => {
     }
 
     const result = normalized.slice(0, parseInt(limit, 10));
+    disasterFeedCache.set(cacheKey, result, 60 * 1000); // 60s cache
 
     res.status(200).json({
       success: true,
       count: result.length,
       source: 'GDACS',
+      cached: false,
       data: result,
     });
   } catch (error) {
@@ -360,6 +375,17 @@ export const getNasaEvents = async (req, res, next) => {
 export const getAllDisasters = async (req, res, next) => {
   try {
     const { type, severity, limit = 100 } = req.query;
+    const cacheKey = `all_disasters_${type || 'all'}_${severity || 'all'}_${limit}`;
+
+    const cached = disasterFeedCache.get(cacheKey);
+    if (cached) {
+      return res.status(200).json({
+        success: true,
+        count: cached.length,
+        cached: true,
+        data: cached,
+      });
+    }
 
     // 1. Fetch saved disasters from MongoDB if connected
     let dbDisasters = [];
@@ -448,10 +474,12 @@ export const getAllDisasters = async (req, res, next) => {
     combined.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     const result = combined.slice(0, parseInt(limit, 10));
+    disasterFeedCache.set(cacheKey, result, 45 * 1000); // 45s cache
 
     res.status(200).json({
       success: true,
       count: result.length,
+      cached: false,
       data: result,
     });
   } catch (error) {

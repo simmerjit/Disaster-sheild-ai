@@ -10,7 +10,13 @@ try {
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI);
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
+      maxPoolSize: 50, // Maintain up to 50 socket connections for concurrency
+      minPoolSize: 10, // Maintain at least 10 warm connections
+      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of hanging
+      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+      family: 4, // Use IPv4 to avoid IPv6 resolution delays
+    });
     console.log(`MongoDB connected successfully: ${conn.connection.host}`);
     return conn;
   } catch (error) {
