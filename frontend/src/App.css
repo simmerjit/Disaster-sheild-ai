@@ -9,11 +9,11 @@
   overflow: hidden;
 }
 
-/* Header */
+/* Header — 3-column grid: brand | nav (centered) | status */
 .app-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   padding: 10px 24px;
   background: rgba(15, 23, 42, 0.9);
   backdrop-filter: blur(16px);
@@ -21,6 +21,21 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
   z-index: 1000;
+}
+
+/* Center column: nav buttons absolutely centered in the header */
+.header-nav-center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+
+/* Right column: live status chip, aligned to the right edge */
+.header-right-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .header-brand {

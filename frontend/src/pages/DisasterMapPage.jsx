@@ -143,6 +143,7 @@ export const DisasterMapPage = () => {
     <div className="disaster-app-container">
       {/* Top Application Header */}
       <header className="app-header">
+        {/* Left: Brand */}
         <div className="header-brand">
           <div className="brand-icon-wrapper">
             <ShieldAlert size={24} className="brand-logo" />
@@ -150,13 +151,13 @@ export const DisasterMapPage = () => {
           <div>
             <h1 className="brand-title">DISASTER SHIELD AI</h1>
             <p className="brand-subtitle">
-              Live Global Early Warning & Incident Management System
+              Live Global Early Warning &amp; Incident Management System
             </p>
           </div>
         </div>
 
-        <div className="header-status-group">
-          {/* Quick HUD Triggers */}
+        {/* Center: Nav Buttons */}
+        <nav className="header-nav-center">
           <button
             onClick={() => {
               if (selectedDisaster) {
@@ -218,13 +219,12 @@ export const DisasterMapPage = () => {
           <button
             onClick={() => setShowNavTool(!showNavTool)}
             className={`nav-header-btn ${showNavTool ? 'active' : ''}`}
-            title="Open Evacuation & Navigation Tool"
+            title="Open Evacuation &amp; Navigation Tool"
           >
             <Route size={15} />
             <span>Evacuation Tool</span>
           </button>
 
-          {/* AI Emergency Assistant Header Trigger */}
           <button
             onClick={() => setShowChatbot(!showChatbot)}
             className={`nav-header-btn ai-assistant-header-btn ${showChatbot ? 'active' : ''}`}
@@ -234,10 +234,13 @@ export const DisasterMapPage = () => {
             <span>AI Assistant</span>
             <span className="ai-sparkle-dot"></span>
           </button>
+        </nav>
 
+        {/* Right: Live Status */}
+        <div className="header-right-group">
           <div className="live-status-chip">
             <span className="live-pulse-dot"></span>
-            <span>GDACS &bull; USGS &bull; NASA &bull; Google Places &bull; NDRF</span>
+            <span>GDACS &bull; USGS &bull; NASA &bull; NDRF</span>
           </div>
         </div>
       </header>
