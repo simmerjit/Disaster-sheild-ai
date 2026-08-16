@@ -1,5 +1,15 @@
 import React from 'react';
-import { ExternalLink, MapPin, Activity, Calendar, Layers, AlertTriangle } from 'lucide-react';
+import {
+  ExternalLink,
+  MapPin,
+  Activity,
+  Calendar,
+  Layers,
+  AlertTriangle,
+  CloudSun,
+  Navigation,
+} from 'lucide-react';
+import { getGoogleMapsDirectionsUrl } from '../utils/geoUtils';
 
 const typeEmojis = {
   earthquake: '🔴',
@@ -21,7 +31,12 @@ const severityColors = {
   low: '#22c55e',
 };
 
-export const DisasterPopup = ({ disaster }) => {
+export const DisasterPopup = ({
+  disaster,
+  userCoords,
+  onOpenWeather,
+  onOpenNavigation,
+}) => {
   if (!disaster) return null;
 
   const {
@@ -45,6 +60,17 @@ export const DisasterPopup = ({ disaster }) => {
   const emoji = typeEmojis[type.toLowerCase()] || '⚠️';
   const sevColor = severityColors[severity.toLowerCase()] || '#eab308';
   const formattedDate = timestamp ? new Date(timestamp).toLocaleString() : 'N/A';
+  const radiusKm = Number(affectedRadius || 10);
+  const radiusMeters = radiusKm * 1000;
+
+  const userLat = userCoords ? Number(userCoords.latitude) : null;
+  const userLng = userCoords ? Number(userCoords.longitude) : null;
+  const directionsUrl = getGoogleMapsDirectionsUrl(
+    userLat,
+    userLng,
+    Number(latitude),
+    Number(longitude)
+  );
 
   return (
     <div className="disaster-popup-content">
@@ -97,22 +123,52 @@ export const DisasterPopup = ({ disaster }) => {
         )}
 
         {/* Affected Radius */}
-        {affectedRadius && (
-          <div className="popup-detail-item">
-            <Layers size={14} className="popup-icon" />
-            <span>
-              <strong>Radius:</strong> ~{affectedRadius} km ({affectedRadius * 1000} m)
-            </span>
-          </div>
-        )}
+        <div className="popup-detail-item">
+          <Layers size={14} className="popup-icon" />
+          <span>
+            <strong>Impact Radius:</strong> ~{radiusKm} km ({radiusMeters.toLocaleString()} m)
+          </span>
+        </div>
 
         {/* Date & Time */}
         <div className="popup-detail-item">
           <Calendar size={14} className="popup-icon" />
           <span>
-            <strong>Date:</strong> {formattedDate}
+            <strong>Date & Time:</strong> {formattedDate}
           </span>
         </div>
+      </div>
+
+      {/* Action Buttons: Weather & Navigation */}
+      <div className="popup-quick-actions">
+        <button
+          onClick={() => {
+            if (onOpenWeather) {
+              onOpenWeather({
+                latitude: Number(latitude),
+                longitude: Number(longitude),
+                name: title || `${type} Event`,
+                type,
+              });
+            }
+          }}
+          className="popup-action-btn weather-action"
+          title="Check real-time meteorological weather at this location"
+        >
+          <CloudSun size={13} />
+          <span>Live Weather</span>
+        </button>
+
+        <a
+          href={directionsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="popup-action-btn nav-action"
+          title="Open directions in Google Maps"
+        >
+          <Navigation size={13} />
+          <span>Navigate</span>
+        </a>
       </div>
 
       {/* Footer Info */}
@@ -130,7 +186,7 @@ export const DisasterPopup = ({ disaster }) => {
             className="popup-link-btn"
             title="View full official report"
           >
-            <span>Details</span>
+            <span>Official Report</span>
             <ExternalLink size={13} />
           </a>
         )}

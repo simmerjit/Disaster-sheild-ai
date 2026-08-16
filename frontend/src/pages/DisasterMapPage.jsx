@@ -3,7 +3,15 @@ import { fetchAllDisasters } from '../services/disasterApi';
 import DisasterMap from '../components/DisasterMap';
 import DisasterSidebar from '../components/DisasterSidebar';
 import DisasterFilters from '../components/DisasterFilters';
-import { AlertTriangle, RefreshCw, ShieldAlert, Globe2 } from 'lucide-react';
+import {
+  AlertTriangle,
+  RefreshCw,
+  ShieldAlert,
+  Globe2,
+  CloudSun,
+  Route,
+  Navigation,
+} from 'lucide-react';
 
 const initialFilters = {
   type: 'all',
@@ -22,6 +30,10 @@ export const DisasterMapPage = () => {
   const [filters, setFilters] = useState(initialFilters);
   const [selectedDisaster, setSelectedDisaster] = useState(null);
   const [userCoords, setUserCoords] = useState(null);
+
+  // Weather and Navigation HUD controls
+  const [weatherTarget, setWeatherTarget] = useState(null);
+  const [showNavTool, setShowNavTool] = useState(false);
 
   // Load disasters from Express backend
   const loadDisasters = useCallback(async () => {
@@ -100,6 +112,17 @@ export const DisasterMapPage = () => {
     });
   }, [disasters, filters]);
 
+  // Quick action: inspect weather for selected disaster or user
+  const handleInspectWeather = (target) => {
+    setWeatherTarget(target);
+  };
+
+  // Quick action: open navigation for selected disaster
+  const handleInspectNavigation = (disaster) => {
+    setSelectedDisaster(disaster);
+    setShowNavTool(true);
+  };
+
   return (
     <div className="disaster-app-container">
       {/* Top Navbar */}
@@ -113,9 +136,51 @@ export const DisasterMapPage = () => {
         </div>
 
         <div className="header-status-group">
+          {/* Quick HUD Triggers */}
+          <button
+            onClick={() => {
+              if (userCoords) {
+                setWeatherTarget({
+                  latitude: Number(userCoords.latitude),
+                  longitude: Number(userCoords.longitude),
+                  name: 'Your Location',
+                  type: 'user_location',
+                });
+              } else if (selectedDisaster) {
+                setWeatherTarget({
+                  latitude: Number(selectedDisaster.latitude),
+                  longitude: Number(selectedDisaster.longitude),
+                  name: selectedDisaster.title,
+                  type: selectedDisaster.type,
+                });
+              } else {
+                setWeatherTarget({
+                  latitude: 20.5937,
+                  longitude: 78.9629,
+                  name: 'India / Regional Center',
+                  type: 'region_center',
+                });
+              }
+            }}
+            className={`nav-header-btn ${weatherTarget ? 'active' : ''}`}
+            title="Open Live Weather Tool"
+          >
+            <CloudSun size={15} />
+            <span>Live Weather</span>
+          </button>
+
+          <button
+            onClick={() => setShowNavTool(!showNavTool)}
+            className={`nav-header-btn ${showNavTool ? 'active' : ''}`}
+            title="Open Evacuation & Navigation Tool"
+          >
+            <Route size={15} />
+            <span>Evacuation Tool</span>
+          </button>
+
           <div className="live-status-chip">
             <span className="live-pulse-dot"></span>
-            <span>GDACS &bull; USGS &bull; NASA EONET Live Feeds</span>
+            <span>GDACS &bull; USGS &bull; NASA &bull; ISRO Feeds</span>
           </div>
         </div>
       </header>
@@ -155,9 +220,12 @@ export const DisasterMapPage = () => {
           onRefresh={loadDisasters}
           loading={loading}
           lastUpdated={lastUpdated}
+          userCoords={userCoords}
+          onInspectWeather={handleInspectWeather}
+          onInspectNavigation={handleInspectNavigation}
         />
 
-        {/* Leaflet + OpenStreetMap Container */}
+        {/* Google Maps Container */}
         <div className="map-view-pane">
           {loading && (
             <div className="map-loading-overlay">
@@ -174,6 +242,10 @@ export const DisasterMapPage = () => {
             onSelectDisaster={setSelectedDisaster}
             userCoords={userCoords}
             onLocationFound={setUserCoords}
+            weatherTarget={weatherTarget}
+            onSetWeatherTarget={setWeatherTarget}
+            showNavTool={showNavTool}
+            onToggleNavTool={setShowNavTool}
           />
         </div>
       </main>

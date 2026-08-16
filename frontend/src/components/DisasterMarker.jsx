@@ -1,10 +1,8 @@
 import React, { useMemo } from 'react';
-import { Marker, Circle, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import DisasterPopup from './DisasterPopup';
+import { Marker, Circle } from '@react-google-maps/api';
 
 // Color & emoji palette for disaster markers
-const typeConfig = {
+export const typeConfig = {
   earthquake: { color: '#ef4444', emoji: '🔴', label: 'Earthquake' },
   cyclone: { color: '#f97316', emoji: '🟠', label: 'Cyclone' },
   flood: { color: '#3b82f6', emoji: '🔵', label: 'Flood' },
@@ -17,37 +15,41 @@ const typeConfig = {
   other: { color: '#eab308', emoji: '⚠️', label: 'Disaster' },
 };
 
-const severityStyles = {
-  critical: { color: '#dc2626', fillColor: '#ef4444', fillOpacity: 0.22, weight: 2 },
-  high: { color: '#ea580c', fillColor: '#f97316', fillOpacity: 0.18, weight: 1.8 },
-  medium: { color: '#ca8a04', fillColor: '#eab308', fillOpacity: 0.15, weight: 1.5 },
-  low: { color: '#16a34a', fillColor: '#22c55e', fillOpacity: 0.12, weight: 1.2 },
+export const severityStyles = {
+  critical: { strokeColor: '#dc2626', fillColor: '#ef4444', fillOpacity: 0.22, strokeWeight: 2 },
+  high: { strokeColor: '#ea580c', fillColor: '#f97316', fillOpacity: 0.18, strokeWeight: 1.8 },
+  medium: { strokeColor: '#ca8a04', fillColor: '#eab308', fillOpacity: 0.15, strokeWeight: 1.5 },
+  low: { strokeColor: '#16a34a', fillColor: '#22c55e', fillOpacity: 0.12, strokeWeight: 1.2 },
 };
 
 /**
- * Creates custom HTML marker icon for each disaster
+ * Generate custom SVG icon for Google Maps Marker
  */
-const createDisasterIcon = (type, severity, title) => {
+const createMarkerIcon = (type, severity, isSelected) => {
   const config = typeConfig[type?.toLowerCase()] || typeConfig.other;
   const sev = severity?.toLowerCase() || 'medium';
+  const color = config.color;
+  const size = isSelected ? 42 : 34;
+  const radius = size / 2;
+  const innerRadius = isSelected ? 14 : 11;
+  const haloOpacity = isSelected ? 0.45 : 0.2;
 
-  return L.divIcon({
-    className: 'custom-disaster-marker',
-    html: `
-      <div class="marker-pulse-wrapper sev-${sev}">
-        <div class="marker-glow-ring" style="border-color: ${config.color};"></div>
-        <div class="marker-pin" style="background-color: ${config.color};" title="${title || ''}">
-          <span class="marker-emoji">${config.emoji}</span>
-        </div>
-      </div>
-    `,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-    popupAnchor: [0, -18],
-  });
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <circle cx="${radius}" cy="${radius}" r="${radius - 2}" fill="${color}" fill-opacity="${haloOpacity}" stroke="${color}" stroke-width="${isSelected ? 3 : 1.5}"/>
+      <circle cx="${radius}" cy="${radius}" r="${innerRadius}" fill="${color}" stroke="#ffffff" stroke-width="${isSelected ? 2.5 : 1.5}"/>
+      <text x="${radius}" y="${radius + (isSelected ? 5 : 4)}" font-size="${isSelected ? 14 : 11}" text-anchor="middle">${config.emoji}</text>
+    </svg>
+  `;
+
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: typeof window !== 'undefined' && window.google ? new window.google.maps.Size(size, size) : undefined,
+    anchor: typeof window !== 'undefined' && window.google ? new window.google.maps.Point(radius, radius) : undefined,
+  };
 };
 
-export const DisasterMarker = ({ disaster, isSelected, onClick }) => {
+export const DisasterMarker = ({ disaster, isSelected, onClick, showRadius = true }) => {
   const {
     id,
     title,
@@ -59,18 +61,28 @@ export const DisasterMarker = ({ disaster, isSelected, onClick }) => {
   } = disaster;
 
   // Validate coordinates
-  if (latitude === null || longitude === null || isNaN(latitude) || isNaN(longitude)) {
+  if (
+    latitude === null ||
+    longitude === null ||
+    latitude === undefined ||
+    longitude === undefined ||
+    isNaN(Number(latitude)) ||
+    isNaN(Number(longitude))
+  ) {
     return null;
   }
 
-  const position = [latitude, longitude];
+  const position = {
+    lat: Number(latitude),
+    lng: Number(longitude),
+  };
 
-  // Convert affected radius from kilometers to meters (Leaflet requirement)
+  // Convert affectedRadius (km) to meters for Google Maps Circle
   const radiusInMeters = Math.max(1000, Number(affectedRadius || 10) * 1000);
 
-  const customIcon = useMemo(
-    () => createDisasterIcon(type, severity, title),
-    [type, severity, title]
+  const markerIcon = useMemo(
+    () => createMarkerIcon(type, severity, isSelected),
+    [type, severity, isSelected]
   );
 
   const circleStyle = severityStyles[severity?.toLowerCase()] || severityStyles.medium;
@@ -78,32 +90,32 @@ export const DisasterMarker = ({ disaster, isSelected, onClick }) => {
   return (
     <>
       {/* Affected Impact Radius Circle */}
-      <Circle
-        center={position}
-        radius={radiusInMeters}
-        pathOptions={{
-          color: circleStyle.color,
-          fillColor: circleStyle.fillColor,
-          fillOpacity: isSelected ? 0.35 : circleStyle.fillOpacity,
-          weight: isSelected ? 3 : circleStyle.weight,
-          dashArray: isSelected ? '4, 4' : undefined,
-        }}
-      />
+      {showRadius && (
+        <Circle
+          center={position}
+          radius={radiusInMeters}
+          options={{
+            strokeColor: isSelected ? '#38bdf8' : circleStyle.strokeColor,
+            strokeOpacity: isSelected ? 0.9 : 0.6,
+            strokeWeight: isSelected ? 2.5 : circleStyle.strokeWeight,
+            fillColor: circleStyle.fillColor,
+            fillOpacity: isSelected ? 0.35 : circleStyle.fillOpacity,
+            clickable: false,
+            zIndex: isSelected ? 10 : 1,
+          }}
+        />
+      )}
 
-      {/* Disaster Location Marker */}
+      {/* Disaster Marker */}
       <Marker
         position={position}
-        icon={customIcon}
-        eventHandlers={{
-          click: () => {
-            if (onClick) onClick(disaster);
-          },
+        icon={markerIcon}
+        title={title || `${type} disaster`}
+        zIndex={isSelected ? 100 : 10}
+        onClick={() => {
+          if (onClick) onClick(disaster);
         }}
-      >
-        <Popup className="disaster-leaflet-popup" minWidth={280} maxWidth={340}>
-          <DisasterPopup disaster={disaster} />
-        </Popup>
-      </Marker>
+      />
     </>
   );
 };

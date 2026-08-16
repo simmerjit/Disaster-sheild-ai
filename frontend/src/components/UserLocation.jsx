@@ -1,41 +1,32 @@
-import React, { useState } from 'react';
-import { Marker, Circle, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import React, { useState, useMemo } from 'react';
+import { Marker, Circle, InfoWindow } from '@react-google-maps/api';
 import { Navigation, Loader2, AlertCircle } from 'lucide-react';
 
-// Custom pulsing blue icon for user location
-const userLocationIcon = L.divIcon({
-  className: 'custom-user-location-marker',
-  html: `
-    <div class="user-marker-pulse">
-      <div class="user-marker-radar"></div>
-      <div class="user-marker-center"></div>
-    </div>
-  `,
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
-  popupAnchor: [0, -14],
-});
-
 /**
- * Subcomponent to fly the map to the user's location
+ * Custom SVG icon for User Location pin with pulsing blue radar design
  */
-const LocationFlyTo = ({ coords }) => {
-  const map = useMap();
-  React.useEffect(() => {
-    if (coords) {
-      map.flyTo([coords.latitude, coords.longitude], 10, {
-        animate: true,
-        duration: 1.5,
-      });
-    }
-  }, [coords, map]);
-  return null;
+const createUserLocationIcon = () => {
+  const size = 32;
+  const radius = size / 2;
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+      <circle cx="${radius}" cy="${radius}" r="14" fill="#3b82f6" fill-opacity="0.25" stroke="#60a5fa" stroke-width="1.5"/>
+      <circle cx="${radius}" cy="${radius}" r="7" fill="#2563eb" stroke="#ffffff" stroke-width="2"/>
+    </svg>
+  `;
+
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: typeof window !== 'undefined' && window.google ? new window.google.maps.Size(size, size) : undefined,
+    anchor: typeof window !== 'undefined' && window.google ? new window.google.maps.Point(radius, radius) : undefined,
+  };
 };
 
-export const UserLocation = ({ userCoords, onLocationFound }) => {
+export const UserLocation = ({ map, userCoords, onLocationFound }) => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [showInfo, setShowInfo] = useState(false);
 
   const handleLocateMe = () => {
     if (!navigator.geolocation) {
@@ -50,7 +41,13 @@ export const UserLocation = ({ userCoords, onLocationFound }) => {
       (position) => {
         setLoading(false);
         const { latitude, longitude, accuracy } = position.coords;
-        onLocationFound({ latitude, longitude, accuracy });
+        const coords = { latitude, longitude, accuracy };
+        onLocationFound(coords);
+
+        if (map) {
+          map.panTo({ lat: latitude, lng: longitude });
+          map.setZoom(10);
+        }
       },
       (err) => {
         setLoading(false);
@@ -72,15 +69,21 @@ export const UserLocation = ({ userCoords, onLocationFound }) => {
     );
   };
 
+  const userIcon = useMemo(() => createUserLocationIcon(), []);
+
+  const userPos = userCoords
+    ? { lat: Number(userCoords.latitude), lng: Number(userCoords.longitude) }
+    : null;
+
   return (
     <>
-      {/* Geolocation Button in UI */}
+      {/* UI Control Button */}
       <div className="user-location-control">
         <button
           onClick={handleLocateMe}
           disabled={loading}
           className={`locate-btn ${userCoords ? 'active' : ''}`}
-          title="Find my current location"
+          title="Find and center on my current location"
         >
           {loading ? (
             <Loader2 size={16} className="spin-icon" />
@@ -99,38 +102,48 @@ export const UserLocation = ({ userCoords, onLocationFound }) => {
       </div>
 
       {/* Render user marker and accuracy radius on map if location exists */}
-      {userCoords && (
+      {userPos && (
         <>
-          <LocationFlyTo coords={userCoords} />
+          {/* User accuracy circle */}
+          <Circle
+            center={userPos}
+            radius={Math.max(1000, Number(userCoords.accuracy || 2000))}
+            options={{
+              strokeColor: '#3b82f6',
+              strokeOpacity: 0.6,
+              strokeWeight: 1.5,
+              fillColor: '#60a5fa',
+              fillOpacity: 0.15,
+              clickable: false,
+              zIndex: 5,
+            }}
+          />
 
           {/* User Location Marker */}
           <Marker
-            position={[userCoords.latitude, userCoords.longitude]}
-            icon={userLocationIcon}
-          >
-            <Popup className="user-leaflet-popup">
+            position={userPos}
+            icon={userIcon}
+            title="Your Current Location"
+            zIndex={200}
+            onClick={() => setShowInfo(true)}
+          />
+
+          {showInfo && (
+            <InfoWindow
+              position={userPos}
+              onCloseClick={() => setShowInfo(false)}
+            >
               <div className="user-popup-content">
                 <strong>📍 Your Current Location</strong>
-                <p>Lat: {userCoords.latitude.toFixed(4)}, Lng: {userCoords.longitude.toFixed(4)}</p>
+                <p>
+                  Lat: {userCoords.latitude.toFixed(4)}, Lng: {userCoords.longitude.toFixed(4)}
+                </p>
                 {userCoords.accuracy && (
                   <small>Accuracy: ~{Math.round(userCoords.accuracy)}m</small>
                 )}
               </div>
-            </Popup>
-          </Marker>
-
-          {/* Accuracy circle */}
-          <Circle
-            center={[userCoords.latitude, userCoords.longitude]}
-            radius={Math.max(1000, userCoords.accuracy || 2000)}
-            pathOptions={{
-              color: '#3b82f6',
-              fillColor: '#60a5fa',
-              fillOpacity: 0.15,
-              weight: 1.5,
-              dashArray: '3, 6',
-            }}
-          />
+            </InfoWindow>
+          )}
         </>
       )}
     </>

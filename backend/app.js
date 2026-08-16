@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 // Route imports
 import authRoutes from './routes/auth.routes.js';
 import disasterRoutes from './routes/disaster.routes.js';
+import weatherRoutes from './routes/weather.routes.js';
 import shelterRoutes from './routes/shelter.routes.js';
 import sosRoutes from './routes/sos.routes.js';
 import rescueRoutes from './routes/rescue.routes.js';
@@ -30,6 +31,7 @@ app.use(cookieParser());
 // ── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/disasters', disasterRoutes);
+app.use('/api/weather', weatherRoutes);
 app.use('/api/shelters', shelterRoutes);
 app.use('/api/sos', sosRoutes);
 app.use('/api/rescue', rescueRoutes);
@@ -44,6 +46,8 @@ app.get('/', (req, res) => {
       gdacsLive: '/api/disasters/live',
       usgsEarthquakes: '/api/disasters/earthquakes',
       nasaEonet: '/api/disasters/nasa',
+      mosdacWeather: '/api/weather/mosdac',
+      mosdacStatus: '/api/weather/mosdac/status',
     },
   });
 });

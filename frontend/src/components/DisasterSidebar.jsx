@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import {
-  AlertOctagon,
-  Flame,
-  Waves,
-  Wind,
-  Mountain,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
   MapPin,
   Clock,
   Radio,
+  CloudSun,
+  Navigation,
 } from 'lucide-react';
+import { calculateDistanceKm, formatDistance } from '../utils/geoUtils';
 
 const typeIcons = {
   earthquake: '🔴',
@@ -34,6 +32,9 @@ export const DisasterSidebar = ({
   onRefresh,
   loading,
   lastUpdated,
+  userCoords,
+  onInspectWeather,
+  onInspectNavigation,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('events'); // 'events' | 'stats'
@@ -52,6 +53,9 @@ export const DisasterSidebar = ({
     return acc;
   }, {});
 
+  const userLat = userCoords ? Number(userCoords.latitude) : null;
+  const userLng = userCoords ? Number(userCoords.longitude) : null;
+
   return (
     <aside className={`disaster-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       {/* Sidebar Collapse Toggle */}
@@ -69,7 +73,7 @@ export const DisasterSidebar = ({
           <div className="sidebar-header">
             <div className="live-indicator-wrapper">
               <span className="live-pulse-dot"></span>
-              <h2 className="sidebar-title">Global Disaster Monitor</h2>
+              <h2 className="sidebar-title">Global Disaster Feed</h2>
             </div>
 
             <button
@@ -79,7 +83,7 @@ export const DisasterSidebar = ({
               title="Refresh live feeds"
             >
               <RefreshCw size={14} className={loading ? 'spin-icon' : ''} />
-              <span>{loading ? 'Updating...' : 'Sync'}</span>
+              <span>{loading ? 'Syncing...' : 'Sync'}</span>
             </button>
           </div>
 
@@ -87,7 +91,7 @@ export const DisasterSidebar = ({
           <div className="metrics-grid">
             <div className="metric-card metric-total">
               <span className="metric-num">{total}</span>
-              <span className="metric-label">Total Events</span>
+              <span className="metric-label">Total</span>
             </div>
             <div className="metric-card metric-critical">
               <span className="metric-num">{criticalCount}</span>
@@ -99,7 +103,7 @@ export const DisasterSidebar = ({
             </div>
             <div className="metric-card metric-med-low">
               <span className="metric-num">{mediumCount + lowCount}</span>
-              <span className="metric-label">Med / Low</span>
+              <span className="metric-label">Med/Low</span>
             </div>
           </div>
 
@@ -115,7 +119,7 @@ export const DisasterSidebar = ({
               className={`sidebar-tab ${activeTab === 'stats' ? 'active' : ''}`}
               onClick={() => setActiveTab('stats')}
             >
-              Breakdown
+              Category Stats
             </button>
           </div>
 
@@ -132,6 +136,14 @@ export const DisasterSidebar = ({
                   const isSel = selectedDisaster?.id === item.id;
                   const emoji = typeIcons[item.type?.toLowerCase()] || '⚠️';
 
+                  // Calculate distance from user if available
+                  const itemLat = Number(item.latitude);
+                  const itemLng = Number(item.longitude);
+                  const dist =
+                    userLat && userLng && !isNaN(itemLat) && !isNaN(itemLng)
+                      ? calculateDistanceKm(userLat, userLng, itemLat, itemLng)
+                      : null;
+
                   return (
                     <div
                       key={item.id}
@@ -144,9 +156,16 @@ export const DisasterSidebar = ({
                         <span className="card-type-tag">
                           {emoji} {item.type?.toUpperCase()}
                         </span>
-                        <span className={`card-sev-badge sev-text-${item.severity}`}>
-                          {item.severity?.toUpperCase()}
-                        </span>
+                        <div className="header-badges-row">
+                          {dist !== null && (
+                            <span className="card-dist-badge">
+                              📍 {formatDistance(dist)}
+                            </span>
+                          )}
+                          <span className={`card-sev-badge sev-text-${item.severity}`}>
+                            {item.severity?.toUpperCase()}
+                          </span>
+                        </div>
                       </div>
 
                       <h4 className="card-title">{item.title}</h4>
@@ -163,13 +182,53 @@ export const DisasterSidebar = ({
                         )}
                         <div className="meta-item">
                           <Clock size={12} />
-                          <span>{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span>
+                            {new Date(item.timestamp).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
                         </div>
                       </div>
 
                       <div className="card-footer">
-                        <span className="card-source-pill">{item.source}</span>
-                        <span className="card-radius-pill">~{item.affectedRadius}km radius</span>
+                        <div className="card-footer-pills">
+                          <span className="card-source-pill">{item.source}</span>
+                          <span className="card-radius-pill">~{item.affectedRadius}km radius</span>
+                        </div>
+
+                        {/* Quick action buttons */}
+                        <div className="card-quick-actions" onClick={(e) => e.stopPropagation()}>
+                          {onInspectWeather && (
+                            <button
+                              onClick={() => {
+                                onSelectDisaster(item);
+                                onInspectWeather({
+                                  latitude: itemLat,
+                                  longitude: itemLng,
+                                  name: item.title,
+                                  type: item.type,
+                                });
+                              }}
+                              className="card-mini-btn weather-mini"
+                              title="Inspect live weather here"
+                            >
+                              <CloudSun size={12} />
+                            </button>
+                          )}
+                          {onInspectNavigation && (
+                            <button
+                              onClick={() => {
+                                onSelectDisaster(item);
+                                onInspectNavigation(item);
+                              }}
+                              className="card-mini-btn nav-mini"
+                              title="Open evacuation routing"
+                            >
+                              <Navigation size={12} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
