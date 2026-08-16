@@ -3,9 +3,11 @@ import { GoogleMap, useJsApiLoader, InfoWindow } from '@react-google-maps/api';
 import { darkMapStyle } from '../utils/mapStyles';
 import DisasterMarker from './DisasterMarker';
 import DisasterPopup from './DisasterPopup';
+import FacilityMarker from './FacilityMarker';
 import UserLocation from './UserLocation';
 import WeatherWidget from './WeatherWidget';
 import NavigationTool from './NavigationTool';
+import NearbyFacilitiesPanel from './NearbyFacilitiesPanel';
 import {
   Maximize2,
   Compass,
@@ -19,7 +21,7 @@ import {
   KeyRound,
   CloudSun,
   Route,
-  Navigation,
+  Hospital,
   HelpCircle,
 } from 'lucide-react';
 
@@ -47,6 +49,13 @@ export const DisasterMap = ({
   onSetWeatherTarget,
   showNavTool,
   onToggleNavTool,
+  facilities = [],
+  onFacilitiesLoaded,
+  facilitiesOrigin,
+  onSetFacilitiesOrigin,
+  showFacilitiesPanel,
+  onToggleFacilitiesPanel,
+  onOpenDetails,
 }) => {
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
@@ -63,10 +72,12 @@ export const DisasterMap = ({
   const [showLegend, setShowLegend] = useState(true);
   const [showLayersMenu, setShowLayersMenu] = useState(false);
   const [weatherInspectorActive, setWeatherInspectorActive] = useState(false);
+  const [selectedFacility, setSelectedFacility] = useState(null);
 
   // Future-ready layers state
   const [activeLayers, setActiveLayers] = useState({
     disasters: true,
+    facilities: true,
     shelters: false,
     rainfall: false,
     lightning: false,
@@ -98,9 +109,23 @@ export const DisasterMap = ({
     }
   }, [map, selectedDisaster]);
 
+  // Smoothly pan to selected facility
+  useEffect(() => {
+    if (map && selectedFacility) {
+      const lat = Number(selectedFacility.latitude);
+      const lng = Number(selectedFacility.longitude);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        map.panTo({ lat, lng });
+        if (map.getZoom() < 12) {
+          map.setZoom(13);
+        }
+      }
+    }
+  }, [map, selectedFacility]);
+
   // Fit all visible disasters on map
   const handleFitBounds = useCallback(() => {
-    if (!map || !window.google || disasters.length === 0) return;
+    if (!map || !window.google || (disasters.length === 0 && facilities.length === 0)) return;
 
     const bounds = new window.google.maps.LatLngBounds();
     let hasValid = false;
@@ -114,10 +139,19 @@ export const DisasterMap = ({
       }
     });
 
+    facilities.forEach((f) => {
+      const lat = Number(f.latitude);
+      const lng = Number(f.longitude);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        bounds.extend({ lat, lng });
+        hasValid = true;
+      }
+    });
+
     if (hasValid) {
       map.fitBounds(bounds, { top: 60, bottom: 60, left: 60, right: 60 });
     }
-  }, [map, disasters]);
+  }, [map, disasters, facilities]);
 
   // Reset to default world view
   const handleResetView = useCallback(() => {
@@ -268,6 +302,20 @@ export const DisasterMap = ({
             />
           ))}
 
+        {/* Google Places Nearby Emergency Facilities Markers */}
+        {activeLayers.facilities &&
+          facilities.map((place) => (
+            <FacilityMarker
+              key={place.id}
+              facility={place}
+              isSelected={selectedFacility?.id === place.id}
+              onClick={(f) => setSelectedFacility(f)}
+              onClose={() => setSelectedFacility(null)}
+              searchOrigin={facilitiesOrigin}
+              userCoords={userCoords}
+            />
+          ))}
+
         {/* Selected Disaster Info Window */}
         {selectedDisaster &&
           selectedDisaster.latitude !== null &&
@@ -289,6 +337,11 @@ export const DisasterMap = ({
                 onOpenNavigation={() => {
                   if (onToggleNavTool) onToggleNavTool(true);
                 }}
+                onOpenFacilities={(origin) => {
+                  if (onSetFacilitiesOrigin) onSetFacilitiesOrigin(origin);
+                  if (onToggleFacilitiesPanel) onToggleFacilitiesPanel(true);
+                }}
+                onOpenDetails={onOpenDetails}
               />
             </InfoWindow>
           )}
@@ -308,7 +361,7 @@ export const DisasterMap = ({
 
         {/* Fit Bounds / Center View */}
         <div className="control-btn-group">
-          <button onClick={handleFitBounds} className="map-ctrl-btn" title="Fit All Disasters in View">
+          <button onClick={handleFitBounds} className="map-ctrl-btn" title="Fit All Events in View">
             <Maximize2 size={16} />
           </button>
           <button onClick={handleResetView} className="map-ctrl-btn" title="Reset World View">
@@ -316,13 +369,47 @@ export const DisasterMap = ({
           </button>
         </div>
 
+        {/* Nearby Emergency Facilities Trigger (Google Places) */}
+        <button
+          onClick={() => {
+            if (showFacilitiesPanel) {
+              if (onToggleFacilitiesPanel) onToggleFacilitiesPanel(false);
+            } else {
+              // Open for selected disaster, or user location, or center of map
+              if (selectedDisaster) {
+                if (onSetFacilitiesOrigin) {
+                  onSetFacilitiesOrigin({
+                    latitude: Number(selectedDisaster.latitude),
+                    longitude: Number(selectedDisaster.longitude),
+                    name: selectedDisaster.title,
+                    type: 'disaster',
+                  });
+                }
+              } else if (userCoords) {
+                if (onSetFacilitiesOrigin) {
+                  onSetFacilitiesOrigin({
+                    latitude: Number(userCoords.latitude),
+                    longitude: Number(userCoords.longitude),
+                    name: 'Your Location',
+                    type: 'user',
+                  });
+                }
+              }
+              if (onToggleFacilitiesPanel) onToggleFacilitiesPanel(true);
+            }
+          }}
+          className={`map-ctrl-btn facilities-tool-btn ${showFacilitiesPanel ? 'active' : ''}`}
+          title="Find Nearby Emergency Facilities (Google Places)"
+        >
+          <Hospital size={16} />
+        </button>
+
         {/* Weather Tool Trigger */}
         <button
           onClick={() => {
             if (weatherTarget) {
               onSetWeatherTarget(null);
             } else {
-              // Open for selected disaster, or user location, or center of map
               if (selectedDisaster) {
                 onSetWeatherTarget({
                   latitude: Number(selectedDisaster.latitude),
@@ -440,7 +527,20 @@ export const DisasterMap = ({
         />
       )}
 
-      {/* Future Layers Menu Panel */}
+      {/* Nearby Emergency Facilities Panel (Google Places) */}
+      {showFacilitiesPanel && (
+        <NearbyFacilitiesPanel
+          searchOrigin={facilitiesOrigin}
+          facilities={facilities}
+          onFacilitiesLoaded={onFacilitiesLoaded}
+          selectedFacility={selectedFacility}
+          onSelectFacility={setSelectedFacility}
+          onClose={() => onToggleFacilitiesPanel(false)}
+          userCoords={userCoords}
+        />
+      )}
+
+      {/* Data Layers Menu Panel */}
       {showLayersMenu && (
         <div className="map-layers-panel">
           <div className="layers-header">
@@ -455,6 +555,16 @@ export const DisasterMap = ({
                 onChange={() => toggleLayer('disasters')}
               />
               <span>🔴 Live Disasters (GDACS / USGS / NASA)</span>
+            </label>
+
+            <label className="layer-item">
+              <input
+                type="checkbox"
+                checked={activeLayers.facilities}
+                onChange={() => toggleLayer('facilities')}
+              />
+              <span>🏥 Nearby Facilities (Google Places)</span>
+              <span className="future-tag active-pill">Active</span>
             </label>
 
             <label className="layer-item future-layer">
@@ -513,8 +623,8 @@ export const DisasterMap = ({
                 checked={activeLayers.shelters}
                 onChange={() => toggleLayer('shelters')}
               />
-              <span>🏠 Emergency Shelters</span>
-              <span className="future-tag">Database</span>
+              <span>🏠 Verified Shelters</span>
+              <span className="future-tag">MongoDB</span>
             </label>
           </div>
         </div>
@@ -524,7 +634,7 @@ export const DisasterMap = ({
       {showLegend && (
         <div className="map-legend-box">
           <div className="legend-header">
-            <h4 className="legend-title">Disaster Legend</h4>
+            <h4 className="legend-title">Disaster & Facility Legend</h4>
             <button
               onClick={() => setShowLegend(false)}
               className="legend-close-btn"
@@ -544,6 +654,10 @@ export const DisasterMap = ({
             <div className="legend-item"><span className="legend-symbol">🌊</span> Tsunami</div>
             <div className="legend-item"><span className="legend-symbol">⛰️</span> Landslide</div>
             <div className="legend-item"><span className="legend-symbol">📍</span> My Location</div>
+            <div className="legend-item"><span className="legend-symbol">🏥</span> Hospital</div>
+            <div className="legend-item"><span className="legend-symbol">💊</span> Pharmacy</div>
+            <div className="legend-item"><span className="legend-symbol">🚓</span> Police</div>
+            <div className="legend-item"><span className="legend-symbol">🚒</span> Fire Station</div>
           </div>
           <div className="legend-radius-note">
             <span className="radius-indicator"></span> Circle = Impact Radius (km &times; 1,000m)
@@ -555,7 +669,7 @@ export const DisasterMap = ({
         <button
           onClick={() => setShowLegend(true)}
           className="show-legend-btn"
-          title="Show disaster legend"
+          title="Show legend"
         >
           Legend
         </button>

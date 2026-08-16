@@ -24,6 +24,7 @@ const severities = [
 
 const sources = [
   { value: 'all', label: 'All Sources' },
+  { value: 'SACHET', label: 'NDMA SACHET (India) 🇮🇳' },
   { value: 'GDACS', label: 'GDACS (Global)' },
   { value: 'USGS', label: 'USGS (Earthquakes)' },
   { value: 'NASA_EONET', label: 'NASA EONET' },

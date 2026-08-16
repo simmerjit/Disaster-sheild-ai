@@ -45,4 +45,12 @@ export const fetchNasaEvents = async (params = {}) => {
   return response.data;
 };
 
+/**
+ * Fetch live Indian disaster warnings from NDMA SACHET via backend
+ */
+export const fetchSachetDisasters = async (params = {}) => {
+  const response = await apiClient.get('/disasters/sachet', { params });
+  return response.data;
+};
+
 export default apiClient;

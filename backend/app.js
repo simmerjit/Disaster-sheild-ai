@@ -8,6 +8,9 @@ import authRoutes from './routes/auth.routes.js';
 import disasterRoutes from './routes/disaster.routes.js';
 import weatherRoutes from './routes/weather.routes.js';
 import shelterRoutes from './routes/shelter.routes.js';
+import placesRoutes from './routes/places.routes.js';
+import rescueOperationRoutes from './routes/rescueOperation.routes.js';
+import reliefRoutes from './routes/relief.routes.js';
 import sosRoutes from './routes/sos.routes.js';
 import rescueRoutes from './routes/rescue.routes.js';
 import reportRoutes from './routes/report.routes.js';
@@ -33,6 +36,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/disasters', disasterRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/shelters', shelterRoutes);
+app.use('/api/places', placesRoutes);
+app.use('/api/rescue-operations', rescueOperationRoutes);
+app.use('/api/relief-organizations', reliefRoutes);
 app.use('/api/sos', sosRoutes);
 app.use('/api/rescue', rescueRoutes);
 app.use('/api/reports', reportRoutes);
@@ -48,6 +54,11 @@ app.get('/', (req, res) => {
       nasaEonet: '/api/disasters/nasa',
       mosdacWeather: '/api/weather/mosdac',
       mosdacStatus: '/api/weather/mosdac/status',
+      nearbyPlaces: '/api/places/nearby',
+      shelters: '/api/shelters',
+      nearbyShelters: '/api/shelters/nearby',
+      rescueOperations: '/api/rescue-operations',
+      reliefOrganizations: '/api/relief-organizations',
     },
   });
 });

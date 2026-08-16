@@ -35,6 +35,8 @@ export const DisasterSidebar = ({
   userCoords,
   onInspectWeather,
   onInspectNavigation,
+  onInspectFacilities,
+  onInspectDetails,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('events'); // 'events' | 'stats'
@@ -199,6 +201,35 @@ export const DisasterSidebar = ({
 
                         {/* Quick action buttons */}
                         <div className="card-quick-actions" onClick={(e) => e.stopPropagation()}>
+                          {onInspectDetails && (
+                            <button
+                              onClick={() => {
+                                onSelectDisaster(item);
+                                onInspectDetails(item);
+                              }}
+                              className="card-mini-btn details-mini"
+                              title="View full incident details & impact"
+                            >
+                              <span>📑</span>
+                            </button>
+                          )}
+                          {onInspectFacilities && (
+                            <button
+                              onClick={() => {
+                                onSelectDisaster(item);
+                                onInspectFacilities({
+                                  latitude: itemLat,
+                                  longitude: itemLng,
+                                  name: item.title,
+                                  type: 'disaster',
+                                });
+                              }}
+                              className="card-mini-btn facilities-mini"
+                              title="Find nearby emergency facilities (Google Places)"
+                            >
+                              <span>🏥</span>
+                            </button>
+                          )}
                           {onInspectWeather && (
                             <button
                               onClick={() => {

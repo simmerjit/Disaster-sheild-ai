@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { XMLParser } from 'fast-xml-parser';
 import Disaster from '../models/disaster.model.js';
+import { fetchSachetFeed } from './sachet.controller.js';
 
 // XML Parser instance for GDACS RSS feeds
 const xmlParser = new XMLParser({
@@ -371,10 +372,11 @@ export const getAllDisasters = async (req, res, next) => {
     }
 
     // 2. Fetch live data in parallel
-    const [gdacsRes, usgsRes, nasaRes] = await Promise.allSettled([
+    const [gdacsRes, usgsRes, nasaRes, sachetRes] = await Promise.allSettled([
       fetch('https://www.gdacs.org/xml/rss.xml').then((r) => r.text()),
       fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson').then((r) => r.json()),
       fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=30').then((r) => r.json()),
+      fetchSachetFeed(),
     ]);
 
     let combined = [];
@@ -399,6 +401,11 @@ export const getAllDisasters = async (req, res, next) => {
     // Add NASA EONET
     if (nasaRes.status === 'fulfilled' && nasaRes.value?.events) {
       combined.push(...nasaRes.value.events.map(normalizeNasaEvent));
+    }
+
+    // Add NDMA SACHET
+    if (sachetRes.status === 'fulfilled' && Array.isArray(sachetRes.value)) {
+      combined.push(...sachetRes.value);
     }
 
     // Add DB records normalized

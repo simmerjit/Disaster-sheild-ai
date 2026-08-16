@@ -23,11 +23,10 @@ export const severityStyles = {
 };
 
 /**
- * Generate custom SVG icon for Google Maps Marker
+ * Generate custom SVG icon data URL for Google Maps Marker
  */
 const createMarkerIcon = (type, severity, isSelected) => {
   const config = typeConfig[type?.toLowerCase()] || typeConfig.other;
-  const sev = severity?.toLowerCase() || 'medium';
   const color = config.color;
   const size = isSelected ? 42 : 34;
   const radius = size / 2;
@@ -106,7 +105,7 @@ export const DisasterMarker = ({ disaster, isSelected, onClick, showRadius = tru
         />
       )}
 
-      {/* Disaster Marker */}
+      {/* Standard Google Maps Marker */}
       <Marker
         position={position}
         icon={markerIcon}

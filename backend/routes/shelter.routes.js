@@ -1,9 +1,7 @@
-// shelter.routes.js
-// TODO: Wire up shelter controller handlers to their routes.
-
 import { Router } from 'express';
 import {
   getAllShelters,
+  getNearbyShelters,
   getShelterById,
   createShelter,
   updateShelter,
@@ -11,6 +9,9 @@ import {
 } from '../controllers/shelter.controller.js';
 
 const router = Router();
+
+// GET    /api/shelters/nearby (MUST be before /:id)
+router.get('/nearby', getNearbyShelters);
 
 // GET    /api/shelters
 router.get('/', getAllShelters);

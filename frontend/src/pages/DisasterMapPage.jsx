@@ -3,6 +3,7 @@ import { fetchAllDisasters } from '../services/disasterApi';
 import DisasterMap from '../components/DisasterMap';
 import DisasterSidebar from '../components/DisasterSidebar';
 import DisasterFilters from '../components/DisasterFilters';
+import DisasterDetailsModal from '../components/DisasterDetailsModal';
 import {
   AlertTriangle,
   RefreshCw,
@@ -31,9 +32,15 @@ export const DisasterMapPage = () => {
   const [selectedDisaster, setSelectedDisaster] = useState(null);
   const [userCoords, setUserCoords] = useState(null);
 
-  // Weather and Navigation HUD controls
+  // Weather, Navigation & Nearby Facilities HUD controls
   const [weatherTarget, setWeatherTarget] = useState(null);
   const [showNavTool, setShowNavTool] = useState(false);
+  const [facilities, setFacilities] = useState([]);
+  const [facilitiesOrigin, setFacilitiesOrigin] = useState(null);
+  const [showFacilitiesPanel, setShowFacilitiesPanel] = useState(false);
+
+  // Disaster Details Modal state
+  const [detailDisaster, setDetailDisaster] = useState(null);
 
   // Load disasters from Express backend
   const loadDisasters = useCallback(async () => {
@@ -45,14 +52,14 @@ export const DisasterMapPage = () => {
         setDisasters(response.data);
         setLastUpdated(new Date());
       } else {
-        throw new Error('Invalid response structure from backend');
+        throw new Error('Invalid response format from server');
       }
     } catch (err) {
-      console.error('Failed to load disaster data:', err);
+      console.error('Failed to load disasters:', err);
       setError(
         err.response?.data?.message ||
           err.message ||
-          'Unable to reach backend API. Make sure Express server is running on port 5000.'
+          'Failed to load live disaster feed from server.'
       );
     } finally {
       setLoading(false);
@@ -63,47 +70,37 @@ export const DisasterMapPage = () => {
     loadDisasters();
   }, [loadDisasters]);
 
-  // Handle filter changes
-  const handleFilterChange = (field, value) => {
-    setFilters((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleResetFilters = () => {
-    setFilters(initialFilters);
-    setSelectedDisaster(null);
-  };
-
-  // Filter disaster list based on active filters
+  // Client-side filtering
   const filteredDisasters = useMemo(() => {
     return disasters.filter((item) => {
-      // Filter by type
+      // Type Filter
       if (filters.type !== 'all' && item.type?.toLowerCase() !== filters.type.toLowerCase()) {
         return false;
       }
 
-      // Filter by severity
+      // Severity Filter
       if (filters.severity !== 'all' && item.severity?.toLowerCase() !== filters.severity.toLowerCase()) {
         return false;
       }
 
-      // Filter by status
+      // Status Filter
       if (filters.status !== 'all' && item.status?.toLowerCase() !== filters.status.toLowerCase()) {
         return false;
       }
 
-      // Filter by source
-      if (filters.source !== 'all' && item.source?.toLowerCase() !== filters.source.toLowerCase()) {
+      // Source Filter
+      if (filters.source !== 'all' && item.source?.toUpperCase() !== filters.source.toUpperCase()) {
         return false;
       }
 
-      // Filter by keyword search (title, country, location)
+      // Text Search
       if (filters.search.trim()) {
-        const query = filters.search.toLowerCase().trim();
+        const query = filters.search.toLowerCase();
         const titleMatch = item.title?.toLowerCase().includes(query);
-        const locationMatch = item.location?.toLowerCase().includes(query);
+        const locMatch = item.location?.toLowerCase().includes(query);
         const countryMatch = item.country?.toLowerCase().includes(query);
         const descMatch = item.description?.toLowerCase().includes(query);
-        if (!titleMatch && !locationMatch && !countryMatch && !descMatch) {
+        if (!titleMatch && !locMatch && !countryMatch && !descMatch) {
           return false;
         }
       }
@@ -112,12 +109,21 @@ export const DisasterMapPage = () => {
     });
   }, [disasters, filters]);
 
-  // Quick action: inspect weather for selected disaster or user
+  // Filter change handlers
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+  };
+
+  const handleResetFilters = () => {
+    setFilters(initialFilters);
+  };
+
+  // Quick weather inspector helper
   const handleInspectWeather = (target) => {
     setWeatherTarget(target);
   };
 
-  // Quick action: open navigation for selected disaster
+  // Quick navigation helper
   const handleInspectNavigation = (disaster) => {
     setSelectedDisaster(disaster);
     setShowNavTool(true);
@@ -125,18 +131,48 @@ export const DisasterMapPage = () => {
 
   return (
     <div className="disaster-app-container">
-      {/* Top Navbar */}
+      {/* Top Application Header */}
       <header className="app-header">
         <div className="header-brand">
-          <ShieldAlert className="brand-logo" size={28} />
+          <div className="brand-icon-wrapper">
+            <ShieldAlert size={24} className="brand-logo" />
+          </div>
           <div>
-            <h1 className="brand-title">CrisisGrid Live</h1>
-            <p className="brand-subtitle">Real-time Global Disaster & Emergency Response System</p>
+            <h1 className="brand-title">DISASTER SHIELD AI</h1>
+            <p className="brand-subtitle">
+              Live Global Early Warning & Incident Management System
+            </p>
           </div>
         </div>
 
         <div className="header-status-group">
           {/* Quick HUD Triggers */}
+          <button
+            onClick={() => {
+              if (selectedDisaster) {
+                setFacilitiesOrigin({
+                  latitude: Number(selectedDisaster.latitude),
+                  longitude: Number(selectedDisaster.longitude),
+                  name: selectedDisaster.title,
+                  type: 'disaster',
+                });
+              } else if (userCoords) {
+                setFacilitiesOrigin({
+                  latitude: Number(userCoords.latitude),
+                  longitude: Number(userCoords.longitude),
+                  name: 'Your Location',
+                  type: 'user',
+                });
+              }
+              setShowFacilitiesPanel(!showFacilitiesPanel);
+            }}
+            className={`nav-header-btn ${showFacilitiesPanel ? 'active' : ''}`}
+            title="Search Nearby Emergency Facilities (Google Places)"
+          >
+            <span>🏥</span>
+            <span>Emergency Facilities</span>
+          </button>
+
           <button
             onClick={() => {
               if (userCoords) {
@@ -180,7 +216,7 @@ export const DisasterMapPage = () => {
 
           <div className="live-status-chip">
             <span className="live-pulse-dot"></span>
-            <span>GDACS &bull; USGS &bull; NASA &bull; ISRO Feeds</span>
+            <span>GDACS &bull; USGS &bull; NASA &bull; Google Places &bull; NDRF</span>
           </div>
         </div>
       </header>
@@ -223,6 +259,13 @@ export const DisasterMapPage = () => {
           userCoords={userCoords}
           onInspectWeather={handleInspectWeather}
           onInspectNavigation={handleInspectNavigation}
+          onInspectFacilities={(origin) => {
+            setFacilitiesOrigin(origin);
+            setShowFacilitiesPanel(true);
+          }}
+          onInspectDetails={(item) => {
+            setDetailDisaster(item);
+          }}
         />
 
         {/* Google Maps Container */}
@@ -246,9 +289,34 @@ export const DisasterMapPage = () => {
             onSetWeatherTarget={setWeatherTarget}
             showNavTool={showNavTool}
             onToggleNavTool={setShowNavTool}
+            facilities={facilities}
+            onFacilitiesLoaded={setFacilities}
+            facilitiesOrigin={facilitiesOrigin}
+            onSetFacilitiesOrigin={setFacilitiesOrigin}
+            showFacilitiesPanel={showFacilitiesPanel}
+            onToggleFacilitiesPanel={setShowFacilitiesPanel}
+            onOpenDetails={(item) => {
+              setDetailDisaster(item);
+            }}
           />
         </div>
       </main>
+
+      {/* Dedicated Full Disaster Incident Details Modal */}
+      {detailDisaster && (
+        <DisasterDetailsModal
+          disaster={detailDisaster}
+          onClose={() => setDetailDisaster(null)}
+          userCoords={userCoords}
+          onOpenFacilities={(origin) => {
+            setFacilitiesOrigin(origin);
+            setShowFacilitiesPanel(true);
+          }}
+          onOpenWeather={(target) => {
+            setWeatherTarget(target);
+          }}
+        />
+      )}
     </div>
   );
 };
