@@ -1,0 +1,82 @@
+# ============================================================
+# Root .gitignore for Disaster Shield AI (Monorepo)
+# Backend: Node.js / Express / MongoDB
+# Frontend: React + Vite
+# ============================================================
+
+# ─── Dependencies ────────────────────────────────────────────
+node_modules/
+
+# ─── Environment Variables (secrets & credentials) ───────────
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+.env.*.local
+
+# ─── Build Output ────────────────────────────────────────────
+dist/
+dist-ssr/
+build/
+out/
+
+# ─── Logs ────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ─── Package Manager Caches ─────────────────────────────────
+.npm/
+.yarn/
+.pnp.*
+
+# ─── OS Files ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ─── Editor & IDE Files ─────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+
+# ─── Local Config Overrides ─────────────────────────────────
+*.local
+
+# ─── Testing & Coverage ─────────────────────────────────────
+coverage/
+.nyc_output/
+*.lcov
+
+# ─── Debug ───────────────────────────────────────────────────
+.cache/
+*.pid
+*.seed
+*.pid.lock
+
+# ─── Vite ────────────────────────────────────────────────────
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# ─── MongoDB Data (if running locally) ──────────────────────
+data/db/
+
+# ─── Misc ────────────────────────────────────────────────────
+.eslintcache
+.parcel-cache/
+*.tsbuildinfo
