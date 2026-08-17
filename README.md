@@ -1,4 +1,4 @@
-# Disaster-sheild-ai
+# DisasterSheildAI
 Disaster sheild ai
 DisasterShield AI is an AI-powered disaster management platform designed to provide timely alerts, safety guidance, and coordinated emergency response. It offers real-time disaster notifications, AI-powered risk prediction and damage assessment, high/low-risk area mapping, nearby shelter and relief-center information, SOS alerts to authorities, verified government updates, and donation/volunteer coordination. Its unique offline mesh communication enables nearby users to exchange SOS messages even without internet access. AI also detects misinformation, analyzes disaster images, recommends safe evacuation routes, and prioritizes relief requests. By connecting citizens, authorities, volunteers, NGOs, and relief centers on one platform, DisasterShield AI enables faster decisions, better communication, and more effective disaster response.
 
