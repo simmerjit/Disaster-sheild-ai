@@ -89,6 +89,13 @@ const disasterSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// High-performance query indexes
+disasterSchema.index({ status: 1, type: 1, severity: 1 });
+disasterSchema.index({ latitude: 1, longitude: 1 });
+disasterSchema.index({ createdAt: -1 });
+disasterSchema.index({ timestamp: -1 });
+disasterSchema.index({ source: 1, externalId: 1 });
+
 const Disaster = mongoose.model('Disaster', disasterSchema);
 
 export default Disaster;

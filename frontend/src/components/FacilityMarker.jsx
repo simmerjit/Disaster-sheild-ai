@@ -44,10 +44,15 @@ export const FacilityMarker = ({
   searchOrigin,
   userCoords,
 }) => {
-  const { id, name, type, address, latitude, longitude, rating, googleMapsUri } = facility;
+  const { name, type, address, latitude, longitude, rating, googleMapsUri } = facility;
 
   const latNum = Number(latitude);
   const lngNum = Number(longitude);
+
+  const markerIcon = useMemo(
+    () => createFacilityIcon(type, isSelected),
+    [type, isSelected]
+  );
 
   const isValidCoords =
     latitude !== null &&
@@ -63,11 +68,6 @@ export const FacilityMarker = ({
 
   const position = { lat: latNum, lng: lngNum };
   const config = facilityConfig[type?.toLowerCase()] || facilityConfig.hospital;
-
-  const markerIcon = useMemo(
-    () => createFacilityIcon(type, isSelected),
-    [type, isSelected]
-  );
 
   // Calculate distance from search origin or user location
   const distFromOrigin =

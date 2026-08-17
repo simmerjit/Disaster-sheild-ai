@@ -4,6 +4,7 @@ import DisasterMap from '../components/DisasterMap';
 import DisasterSidebar from '../components/DisasterSidebar';
 import DisasterFilters from '../components/DisasterFilters';
 import DisasterDetailsModal from '../components/DisasterDetailsModal';
+import DisasterChatbot from '../components/DisasterChatbot';
 import {
   AlertTriangle,
   RefreshCw,
@@ -12,6 +13,8 @@ import {
   CloudSun,
   Route,
   Navigation,
+  Bot,
+  Sparkles,
 } from 'lucide-react';
 
 const initialFilters = {
@@ -38,6 +41,9 @@ export const DisasterMapPage = () => {
   const [facilities, setFacilities] = useState([]);
   const [facilitiesOrigin, setFacilitiesOrigin] = useState(null);
   const [showFacilitiesPanel, setShowFacilitiesPanel] = useState(false);
+
+  // AI Chatbot Assistant State
+  const [showChatbot, setShowChatbot] = useState(false);
 
   // Disaster Details Modal state
   const [detailDisaster, setDetailDisaster] = useState(null);
@@ -110,8 +116,12 @@ export const DisasterMapPage = () => {
   }, [disasters, filters]);
 
   // Filter change handlers
-  const handleFilterChange = (newFilters) => {
-    setFilters(newFilters);
+  const handleFilterChange = (keyOrObj, value) => {
+    if (typeof keyOrObj === 'string') {
+      setFilters((prev) => ({ ...prev, [keyOrObj]: value }));
+    } else if (keyOrObj && typeof keyOrObj === 'object') {
+      setFilters(keyOrObj);
+    }
   };
 
   const handleResetFilters = () => {
@@ -133,6 +143,7 @@ export const DisasterMapPage = () => {
     <div className="disaster-app-container">
       {/* Top Application Header */}
       <header className="app-header">
+        {/* Left: Brand */}
         <div className="header-brand">
           <div className="brand-icon-wrapper">
             <ShieldAlert size={24} className="brand-logo" />
@@ -140,13 +151,13 @@ export const DisasterMapPage = () => {
           <div>
             <h1 className="brand-title">DISASTER SHIELD AI</h1>
             <p className="brand-subtitle">
-              Live Global Early Warning & Incident Management System
+              Live Global Early Warning &amp; Incident Management System
             </p>
           </div>
         </div>
 
-        <div className="header-status-group">
-          {/* Quick HUD Triggers */}
+        {/* Center: Nav Buttons */}
+        <nav className="header-nav-center">
           <button
             onClick={() => {
               if (selectedDisaster) {
@@ -208,15 +219,28 @@ export const DisasterMapPage = () => {
           <button
             onClick={() => setShowNavTool(!showNavTool)}
             className={`nav-header-btn ${showNavTool ? 'active' : ''}`}
-            title="Open Evacuation & Navigation Tool"
+            title="Open Evacuation &amp; Navigation Tool"
           >
             <Route size={15} />
             <span>Evacuation Tool</span>
           </button>
 
+          <button
+            onClick={() => setShowChatbot(!showChatbot)}
+            className={`nav-header-btn ai-assistant-header-btn ${showChatbot ? 'active' : ''}`}
+            title="Open DisasterShield AI Emergency Assistant"
+          >
+            <Bot size={15} className="ai-btn-icon" />
+            <span>AI Assistant</span>
+            <span className="ai-sparkle-dot"></span>
+          </button>
+        </nav>
+
+        {/* Right: Live Status */}
+        <div className="header-right-group">
           <div className="live-status-chip">
             <span className="live-pulse-dot"></span>
-            <span>GDACS &bull; USGS &bull; NASA &bull; Google Places &bull; NDRF</span>
+            <span>GDACS &bull; USGS &bull; NASA &bull; NDRF</span>
           </div>
         </div>
       </header>
@@ -317,6 +341,39 @@ export const DisasterMapPage = () => {
           }}
         />
       )}
+
+      {/* Floating AI Assistant Trigger Button */}
+      <button
+        onClick={() => setShowChatbot(!showChatbot)}
+        className={`floating-ai-launcher-btn ${showChatbot ? 'active' : ''}`}
+        title="Open DisasterShield AI Emergency Assistant"
+      >
+        <div className="floating-launcher-inner gemini-gradient">
+          <Sparkles size={18} className="floating-bot-icon" />
+        </div>
+        <span className="floating-btn-text">DisasterShield AI</span>
+      </button>
+
+      {/* DisasterShield AI Chatbot Assistant Modal */}
+      <DisasterChatbot
+        isOpen={showChatbot}
+        onClose={() => setShowChatbot(false)}
+        userCoords={userCoords}
+        selectedDisaster={selectedDisaster}
+        onOpenFacilities={(origin, facilityType) => {
+          if (origin) setFacilitiesOrigin(origin);
+          setShowFacilitiesPanel(true);
+        }}
+        onOpenWeather={(target) => {
+          setWeatherTarget(target);
+        }}
+        onOpenNavigation={() => {
+          setShowNavTool(true);
+        }}
+        onFilterDisasterType={(type) => {
+          setFilters((prev) => ({ ...prev, type }));
+        }}
+      />
     </div>
   );
 };
