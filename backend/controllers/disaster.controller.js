@@ -12,9 +12,24 @@ const xmlParser = new XMLParser({
   trimValues: true,
 });
 
+// Helper: Safely extract string value from any XML parser output
+const safeString = (val) => {
+  if (val === undefined || val === null) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+  if (typeof val === 'object') {
+    if (val['#text'] !== undefined) return String(val['#text']);
+    if (val['@_value'] !== undefined) return String(val['@_value']);
+    if (val['@_level'] !== undefined) return String(val['@_level']);
+    if (val.value !== undefined) return String(val.value);
+    if (Array.isArray(val) && val.length > 0) return safeString(val[0]);
+  }
+  return '';
+};
+
 // Helper: Map GDACS event types to standard types
 const mapGdacsType = (eventType) => {
-  const code = (eventType || '').toUpperCase();
+  const code = safeString(eventType).toUpperCase();
   switch (code) {
     case 'EQ':
       return 'earthquake';
@@ -37,10 +52,11 @@ const mapGdacsType = (eventType) => {
 
 // Helper: Map GDACS alert levels to severity
 const mapGdacsSeverity = (alertLevel) => {
-  const level = (alertLevel || '').toLowerCase();
-  if (level === 'red') return 'critical';
-  if (level === 'orange') return 'high';
-  if (level === 'green') return 'low';
+  const level = safeString(alertLevel).toLowerCase();
+  if (level.includes('red')) return 'critical';
+  if (level.includes('orange')) return 'high';
+  if (level.includes('green')) return 'low';
+  if (level.includes('yellow')) return 'medium';
   return 'medium';
 };
 
@@ -84,10 +100,10 @@ const normalizeGdacsItem = (item) => {
   let lat = null;
   let lng = null;
   if (item['geo:Point']) {
-    lat = parseFloat(item['geo:Point']['geo:lat']);
-    lng = parseFloat(item['geo:Point']['geo:long']);
+    lat = parseFloat(safeString(item['geo:Point']['geo:lat']));
+    lng = parseFloat(safeString(item['geo:Point']['geo:long']));
   } else if (item['georss:point']) {
-    const parts = String(item['georss:point']).split(/\s+/);
+    const parts = safeString(item['georss:point']).split(/\s+/);
     lat = parseFloat(parts[0]);
     lng = parseFloat(parts[1]);
   }
@@ -99,29 +115,32 @@ const normalizeGdacsItem = (item) => {
       magnitude = parseFloat(item['gdacs:severity']['@_value']);
     } else if (typeof item['gdacs:severity'] === 'number') {
       magnitude = item['gdacs:severity'];
+    } else if (typeof item['gdacs:severity'] === 'string') {
+      magnitude = parseFloat(item['gdacs:severity']);
     }
   }
 
-  const id = item.guid?.['#text'] || item.guid || `GDACS_${item['gdacs:eventid'] || Date.now()}`;
+  const rawGuid = item.guid?.['#text'] || item.guid || item['gdacs:eventid'];
+  const id = safeString(rawGuid) || `${Date.now()}`;
   const radius = calculateRadius(type, severity, magnitude);
 
   return {
     id: `GDACS_${id}`,
-    title: item.title || `${severity.toUpperCase()} Alert: ${type}`,
+    title: safeString(item.title) || `${severity.toUpperCase()} Alert: ${type}`,
     type,
-    description: item.description || '',
+    description: safeString(item.description) || '',
     severity,
     magnitude: isNaN(magnitude) ? null : magnitude,
     depth: null,
     latitude: lat,
     longitude: lng,
     affectedRadius: radius,
-    country: item['gdacs:country'] || '',
-    location: item['gdacs:country'] || 'Global',
+    country: safeString(item['gdacs:country']) || '',
+    location: safeString(item['gdacs:country']) || 'Global',
     timestamp: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
     source: 'GDACS',
     status: item['gdacs:iscurrent'] === false ? 'resolved' : 'active',
-    link: item.link || '',
+    link: safeString(item.link) || '',
   };
 };
 
