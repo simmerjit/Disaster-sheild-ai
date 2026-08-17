@@ -2,6 +2,7 @@ import Disaster from '../models/disaster.model.js';
 import Shelter from '../models/shelter.model.js';
 import ChatSession from '../models/chatSession.model.js';
 import { chatResponseCache } from '../utils/cache.js';
+import { generateOpenRouterChatResponse } from '../utils/openrouter.js';
 
 /**
  * @module controllers/chat.controller
@@ -265,11 +266,11 @@ export const handleChatMessage = async (req, res) => {
     const cleanQuery = message.trim();
     const intent = analyzeIntent(cleanQuery);
 
-    // Cache key for intent query
-    const cacheKey = `intent_${intent}_${activeDisasterId || 'none'}`;
+    // Cache key for exact query
+    const cacheKey = `query_${cleanQuery.toLowerCase()}_${activeDisasterId || 'none'}`;
     const cachedResponse = chatResponseCache.get(cacheKey);
 
-    if (cachedResponse && intent !== 'live_disasters') {
+    if (cachedResponse) {
       const responseData = {
         ...cachedResponse,
         timestamp: new Date().toISOString(),
@@ -285,157 +286,183 @@ export const handleChatMessage = async (req, res) => {
       });
     }
 
+    // Query session history & active disaster for rich AI contextual awareness
+    let sessionHistory = [];
+    if (sessionId) {
+      try {
+        const sessionRecord = await ChatSession.findOne({ sessionId }).select('messages').lean();
+        if (sessionRecord && Array.isArray(sessionRecord.messages)) {
+          sessionHistory = sessionRecord.messages.slice(-6);
+        }
+      } catch (sessErr) {
+        // Silently proceed
+      }
+    }
+
+    let activeDisasterObj = null;
+    if (activeDisasterId) {
+      try {
+        activeDisasterObj = await Disaster.findById(activeDisasterId).select('title type severity location affectedRadius').lean();
+      } catch (disErr) {
+        // Silently proceed
+      }
+    }
+
     let responseData = null;
 
-    // 1. Direct Knowledge Base Match
-    if (SAFETY_KNOWLEDGE_BASE[intent]) {
-      const entry = SAFETY_KNOWLEDGE_BASE[intent];
-      responseData = {
-        reply: `### 🚨 ${entry.category}\n\n**Key Directive:** ${entry.headline}\n\n${entry.steps.map((s, i) => `${i + 1}. ${s}`).join('\n\n')}`,
-        category: entry.category,
-        actions: entry.actions,
-        suggestions: entry.suggestions,
-        source: 'DisasterShield AI Knowledge Base (NDMA / UNDRR Standards)',
-        timestamp: new Date().toISOString(),
-      };
-    }
-    // 2. Emergency Contacts Query
-    else if (intent === 'contacts') {
-      const contactList = EMERGENCY_CONTACTS.map((c) => `- **${c.name}**: \`${c.number}\``).join('\n');
-      responseData = {
-        reply: `### 📞 Verified Emergency Helplines (24/7 National Dispatch)\n\n${contactList}\n\n> ⚠️ *In an immediate life-threatening emergency, dial **112** or **1078** immediately.*`,
-        category: 'Emergency Directory',
-        actions: [
-          { label: '🚨 Call National Emergency (112)', action: 'CALL', payload: { number: '112' } },
-          { label: '🛡️ Call NDRF Helpline (1078)', action: 'CALL', payload: { number: '1078' } },
-          { label: '🚑 Call Ambulance (108)', action: 'CALL', payload: { number: '108' } },
-        ],
-        suggestions: [
-          'What should I tell the emergency dispatcher?',
-          'How to request NDRF search and rescue?',
-          'Find nearest emergency hospital',
-        ],
-        source: 'NDMA National Disaster Directory',
-        timestamp: new Date().toISOString(),
-      };
-    }
-    // 3. Live Active Disasters Query
-    else if (intent === 'live_disasters') {
-      let recentDisasters = [];
+    // 0. Primary: Generate real-time AI response via OpenRouter (Google Gemini 2.5 Flash)
+    if (process.env.OPENROUTER_API_KEY) {
       try {
-        recentDisasters = await Disaster.find({ status: { $ne: 'past' } })
-          .select('title type severity location country affectedRadius')
-          .sort({ createdAt: -1 })
-          .limit(5)
-          .lean();
-      } catch (dbErr) {
-        console.warn('Could not query DB for disasters:', dbErr.message);
+        responseData = await generateOpenRouterChatResponse({
+          message: cleanQuery,
+          history: sessionHistory,
+          userCoordinates: (latitude && longitude) ? { latitude, longitude } : null,
+          activeDisaster: activeDisasterObj,
+        });
+      } catch (openRouterErr) {
+        console.warn('OpenRouter generation encountered an error, using local fallback:', openRouterErr.message);
       }
+    }
 
-      let summaryText = '';
-      if (recentDisasters.length > 0) {
-        summaryText = recentDisasters
-          .map(
-            (d, idx) =>
-              `${idx + 1}. **${d.title || 'Disaster Incident'}**\n   - Type: \`${(d.type || 'unknown').toUpperCase()}\` | Severity: **${(d.severity || 'medium').toUpperCase()}**\n   - Location: ${d.location || d.country || 'Global Coordinates'}\n   - Affected Radius: ~${d.affectedRadius || 20} km`
-          )
-          .join('\n\n');
+    // Fallback handlers if OpenRouter is offline or not configured
+    if (!responseData) {
+      if (SAFETY_KNOWLEDGE_BASE[intent]) {
+        const entry = SAFETY_KNOWLEDGE_BASE[intent];
+        responseData = {
+          reply: `### 🚨 ${entry.category}\n\n**Key Directive:** ${entry.headline}\n\n${entry.steps.map((s, i) => `${i + 1}. ${s}`).join('\n\n')}`,
+          category: entry.category,
+          actions: entry.actions,
+          suggestions: entry.suggestions,
+          source: 'DisasterShield AI Knowledge Base (NDMA / UNDRR Standards)',
+          timestamp: new Date().toISOString(),
+        };
+      } else if (intent === 'contacts') {
+        const contactList = EMERGENCY_CONTACTS.map((c) => `- **${c.name}**: \`${c.number}\``).join('\n');
+        responseData = {
+          reply: `### 📞 Verified Emergency Helplines (24/7 National Dispatch)\n\n${contactList}\n\n> ⚠️ *In an immediate life-threatening emergency, dial **112** or **1078** immediately.*`,
+          category: 'Emergency Directory',
+          actions: [
+            { label: '🚨 Call National Emergency (112)', action: 'CALL', payload: { number: '112' } },
+            { label: '🛡️ Call NDRF Helpline (1078)', action: 'CALL', payload: { number: '1078' } },
+            { label: '🚑 Call Ambulance (108)', action: 'CALL', payload: { number: '108' } },
+          ],
+          suggestions: [
+            'What should I tell the emergency dispatcher?',
+            'How to request NDRF search and rescue?',
+            'Find nearest emergency hospital',
+          ],
+          source: 'NDMA National Disaster Directory',
+          timestamp: new Date().toISOString(),
+        };
+      } else if (intent === 'live_disasters') {
+        let recentDisasters = [];
+        try {
+          recentDisasters = await Disaster.find({ status: { $ne: 'past' } })
+            .select('title type severity location country affectedRadius')
+            .sort({ createdAt: -1 })
+            .limit(5)
+            .lean();
+        } catch (dbErr) {
+          console.warn('Could not query DB for disasters:', dbErr.message);
+        }
+
+        let summaryText = '';
+        if (recentDisasters.length > 0) {
+          summaryText = recentDisasters
+            .map(
+              (d, idx) =>
+                `${idx + 1}. **${d.title || 'Disaster Incident'}**\n   - Type: \`${(d.type || 'unknown').toUpperCase()}\` | Severity: **${(d.severity || 'medium').toUpperCase()}**\n   - Location: ${d.location || d.country || 'Global Coordinates'}\n   - Affected Radius: ~${d.affectedRadius || 20} km`
+            )
+            .join('\n\n');
+        } else {
+          summaryText = 'Currently tracking real-time global telemetry feeds from **GDACS**, **USGS**, and **NASA EONET**. Check the interactive live map for real-time pinpoint coordinates.';
+        }
+
+        responseData = {
+          reply: `### 🛰️ Live Disaster Feed & Early Warnings\n\n${summaryText}\n\nUse the map filters to inspect specific hazard types like Cyclones, Earthquakes, and Floods in high-risk zones.`,
+          category: 'Live Incident Telemetry',
+          actions: [
+            { label: '🗺️ Explore Interactive Map', action: 'VIEW_MAP' },
+            { label: '🌪️ Filter Cyclones', action: 'FILTER_MAP', payload: { type: 'cyclone' } },
+            { label: '⚡ Filter Earthquakes', action: 'FILTER_MAP', payload: { type: 'earthquake' } },
+          ],
+          suggestions: [
+            'How are affected radius zones calculated?',
+            'Show active severe storms near me',
+            'What are the GDACS alert level thresholds?',
+          ],
+          source: 'GDACS / USGS / NASA / DisasterShield Live Feed',
+          timestamp: new Date().toISOString(),
+        };
+      } else if (intent === 'shelter_search') {
+        responseData = {
+          reply: `### 🏕️ Emergency Shelter & Relief Centers\n\nVerified emergency shelters provide potable water, power backup, medical triage, and emergency rations.\n\nTo locate the closest available facility with live capacity statistics, tap **"Locate Nearest Shelters"** below to trigger GPS geospatial discovery.`,
+          category: 'Shelter Locator',
+          actions: [
+            { label: '📍 Locate Nearest Shelters', action: 'OPEN_FACILITIES', payload: { type: 'shelter' } },
+            { label: '🗺️ Plan Safe Evacuation Route', action: 'OPEN_NAVIGATION' },
+          ],
+          suggestions: [
+            'What items are allowed in emergency shelters?',
+            'Are pets allowed in public disaster shelters?',
+            'How to register as an displaced person?',
+          ],
+          source: 'NDMA Shelter Management Guidelines',
+          timestamp: new Date().toISOString(),
+        };
+      } else if (intent === 'facility_search') {
+        responseData = {
+          reply: `### 🏥 Emergency Medical & Protective Facilities\n\nDisasterShield AI integrates directly with **Google Places API (New)** to detect nearby trauma centers, pharmacies, police stations, and fire services in real-time.\n\nTap a button below to launch instantaneous radius scanning:`,
+          category: 'Facility Discovery',
+          actions: [
+            { label: '🏥 Search Hospitals & ERs', action: 'OPEN_FACILITIES', payload: { type: 'hospital' } },
+            { label: '🚒 Search Fire Stations', action: 'OPEN_FACILITIES', payload: { type: 'fire_station' } },
+            { label: '🚓 Search Police Stations', action: 'OPEN_FACILITIES', payload: { type: 'police' } },
+          ],
+          suggestions: [
+            'How to get emergency transport to a hospital?',
+            'Find nearest 24/7 pharmacy',
+            'Emergency burns & trauma response steps',
+          ],
+          source: 'Google Places API (New) Discovery Layer',
+          timestamp: new Date().toISOString(),
+        };
+      } else if (intent === 'weather') {
+        responseData = {
+          reply: `### 🌤️ Real-Time Atmospheric & Weather Telemetry\n\nDisasterShield AI tracks live wind velocity, barometric pressure, precipitation, and storm trajectories from Open-Meteo and ISRO MOSDAC.\n\nTap below to open the live weather dashboard for your current coordinates or a disaster zone:`,
+          category: 'Weather Telemetry',
+          actions: [
+            { label: '🌤️ Launch Weather Tool', action: 'OPEN_WEATHER' },
+            { label: '🗺️ View High-Wind Hazard Zones', action: 'FILTER_MAP', payload: { type: 'cyclone' } },
+          ],
+          suggestions: [
+            'What is the threshold for a severe cyclone warning?',
+            'How to interpret barometric pressure drop before storms?',
+            'Check heatwave safety tips',
+          ],
+          source: 'Open-Meteo / ISRO MOSDAC',
+          timestamp: new Date().toISOString(),
+        };
       } else {
-        summaryText = 'Currently tracking real-time global telemetry feeds from **GDACS**, **USGS**, and **NASA EONET**. Check the interactive live map for real-time pinpoint coordinates.';
+        responseData = {
+          reply: `### 🛡️ DisasterShield AI Assistant\n\nI am your 24/7 AI Emergency & Disaster Response Assistant. I can guide you through immediate safety procedures, locate emergency facilities, track live global disaster telemetry, and provide first aid instructions.\n\n**How can I assist you right now?**\n- 🚨 **Immediate Safety Steps** for Earthquakes, Floods, Cyclones, Wildfires, or Tsunamis\n- 🩹 **Emergency First Aid & Trauma CPR** instructions\n- 🏥 **Nearby Hospitals, Shelters, and Police Stations**\n- 📞 **24/7 Emergency Contacts** (NDRF 1078, Police 112, Ambulance 108)\n- 🎒 **72-Hour Evacuation Go-Bag** checklist`,
+          category: 'General Safety Assistant',
+          actions: [
+            { label: '🚨 Emergency SOS Directives', action: 'QUICK_QUERY', payload: { query: 'first aid emergency protocol' } },
+            { label: '🏥 Find Nearby Hospitals', action: 'OPEN_FACILITIES', payload: { type: 'hospital' } },
+            { label: '🏕️ Find Safe Shelters', action: 'OPEN_FACILITIES', payload: { type: 'shelter' } },
+            { label: '🗺️ Open Evacuation Route', action: 'OPEN_NAVIGATION' },
+          ],
+          suggestions: [
+            'What should I do during an Earthquake?',
+            'How to prepare for a Cyclone warning?',
+            'What are the emergency helpline numbers?',
+            'What items go in a 72-hour survival kit?',
+          ],
+          source: 'DisasterShield AI Intelligence Engine',
+          timestamp: new Date().toISOString(),
+        };
       }
-
-      responseData = {
-        reply: `### 🛰️ Live Disaster Feed & Early Warnings\n\n${summaryText}\n\nUse the map filters to inspect specific hazard types like Cyclones, Earthquakes, and Floods in high-risk zones.`,
-        category: 'Live Incident Telemetry',
-        actions: [
-          { label: '🗺️ Explore Interactive Map', action: 'VIEW_MAP' },
-          { label: '🌪️ Filter Cyclones', action: 'FILTER_MAP', payload: { type: 'cyclone' } },
-          { label: '⚡ Filter Earthquakes', action: 'FILTER_MAP', payload: { type: 'earthquake' } },
-        ],
-        suggestions: [
-          'How are affected radius zones calculated?',
-          'Show active severe storms near me',
-          'What are the GDACS alert level thresholds?',
-        ],
-        source: 'GDACS / USGS / NASA / DisasterShield Live Feed',
-        timestamp: new Date().toISOString(),
-      };
-    }
-    // 4. Shelter & Safe Refuge Search
-    else if (intent === 'shelter_search') {
-      responseData = {
-        reply: `### 🏕️ Emergency Shelter & Relief Centers\n\nVerified emergency shelters provide potable water, power backup, medical triage, and emergency rations.\n\nTo locate the closest available facility with live capacity statistics, tap **"Locate Nearest Shelters"** below to trigger GPS geospatial discovery.`,
-        category: 'Shelter Locator',
-        actions: [
-          { label: '📍 Locate Nearest Shelters', action: 'OPEN_FACILITIES', payload: { type: 'shelter' } },
-          { label: '🗺️ Plan Safe Evacuation Route', action: 'OPEN_NAVIGATION' },
-        ],
-        suggestions: [
-          'What items are allowed in emergency shelters?',
-          'Are pets allowed in public disaster shelters?',
-          'How to register as an displaced person?',
-        ],
-        source: 'NDMA Shelter Management Guidelines',
-        timestamp: new Date().toISOString(),
-      };
-    }
-    // 5. Emergency Facilities (Hospitals, Police, Fire)
-    else if (intent === 'facility_search') {
-      responseData = {
-        reply: `### 🏥 Emergency Medical & Protective Facilities\n\nDisasterShield AI integrates directly with **Google Places API (New)** to detect nearby trauma centers, pharmacies, police stations, and fire services in real-time.\n\nTap a button below to launch instantaneous radius scanning:`,
-        category: 'Facility Discovery',
-        actions: [
-          { label: '🏥 Search Hospitals & ERs', action: 'OPEN_FACILITIES', payload: { type: 'hospital' } },
-          { label: '🚒 Search Fire Stations', action: 'OPEN_FACILITIES', payload: { type: 'fire_station' } },
-          { label: '🚓 Search Police Stations', action: 'OPEN_FACILITIES', payload: { type: 'police' } },
-        ],
-        suggestions: [
-          'How to get emergency transport to a hospital?',
-          'Find nearest 24/7 pharmacy',
-          'Emergency burns & trauma response steps',
-        ],
-        source: 'Google Places API (New) Discovery Layer',
-        timestamp: new Date().toISOString(),
-      };
-    }
-    // 6. Live Weather & Meteorological Inspector
-    else if (intent === 'weather') {
-      responseData = {
-        reply: `### 🌤️ Real-Time Atmospheric & Weather Telemetry\n\nDisasterShield AI tracks live wind velocity, barometric pressure, precipitation, and storm trajectories from Open-Meteo and ISRO MOSDAC.\n\nTap below to open the live weather dashboard for your current coordinates or a disaster zone:`,
-        category: 'Weather Telemetry',
-        actions: [
-          { label: '🌤️ Launch Weather Tool', action: 'OPEN_WEATHER' },
-          { label: '🗺️ View High-Wind Hazard Zones', action: 'FILTER_MAP', payload: { type: 'cyclone' } },
-        ],
-        suggestions: [
-          'What is the threshold for a severe cyclone warning?',
-          'How to interpret barometric pressure drop before storms?',
-          'Check heatwave safety tips',
-        ],
-        source: 'Open-Meteo / ISRO MOSDAC',
-        timestamp: new Date().toISOString(),
-      };
-    }
-    // 7. General Emergency AI Fallback
-    else {
-      responseData = {
-        reply: `### 🛡️ DisasterShield AI Assistant\n\nI am your 24/7 AI Emergency & Disaster Response Assistant. I can guide you through immediate safety procedures, locate emergency facilities, track live global disaster telemetry, and provide first aid instructions.\n\n**How can I assist you right now?**\n- 🚨 **Immediate Safety Steps** for Earthquakes, Floods, Cyclones, Wildfires, or Tsunamis\n- 🩹 **Emergency First Aid & Trauma CPR** instructions\n- 🏥 **Nearby Hospitals, Shelters, and Police Stations**\n- 📞 **24/7 Emergency Contacts** (NDRF 1078, Police 112, Ambulance 108)\n- 🎒 **72-Hour Evacuation Go-Bag** checklist`,
-        category: 'General Safety Assistant',
-        actions: [
-          { label: '🚨 Emergency SOS Directives', action: 'QUICK_QUERY', payload: { query: 'first aid emergency protocol' } },
-          { label: '🏥 Find Nearby Hospitals', action: 'OPEN_FACILITIES', payload: { type: 'hospital' } },
-          { label: '🏕️ Find Safe Shelters', action: 'OPEN_FACILITIES', payload: { type: 'shelter' } },
-          { label: '🗺️ Open Evacuation Route', action: 'OPEN_NAVIGATION' },
-        ],
-        suggestions: [
-          'What should I do during an Earthquake?',
-          'How to prepare for a Cyclone warning?',
-          'What are the emergency helpline numbers?',
-          'What items go in a 72-hour survival kit?',
-        ],
-        source: 'DisasterShield AI Intelligence Engine',
-        timestamp: new Date().toISOString(),
-      };
     }
 
     // Cache the response

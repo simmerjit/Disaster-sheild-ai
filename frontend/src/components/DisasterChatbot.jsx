@@ -74,13 +74,13 @@ I am your 24/7 AI Emergency Decision & Disaster Safety Companion. I monitor glob
 };
 
 const QUICK_TOPICS = [
-  { label: '🚨 Helplines', query: 'What are the emergency helpline numbers?', icon: PhoneCall },
-  { label: '⚡ Earthquake', query: 'What should I do during an Earthquake?', icon: Activity },
-  { label: '🌊 Floods', query: 'Flood safety and flash flood protocol', icon: Waves },
-  { label: '🌪️ Cyclone', query: 'Cyclone warning safety precautions', icon: Radio },
-  { label: '🔥 Wildfire', query: 'Wildfire and smoke safety guidelines', icon: Flame },
-  { label: '🩹 First Aid', query: 'Emergency first aid and CPR steps', icon: HeartPulse },
-  { label: '🎒 Go-Bag', query: 'What items go into a 72-hour disaster survival kit?', icon: Package },
+  { label: 'Helplines', query: 'What are the emergency helpline numbers?', icon: PhoneCall },
+  { label: 'Earthquake', query: 'What should I do during an Earthquake?', icon: Activity },
+  { label: 'Floods', query: 'Flood safety and flash flood protocol', icon: Waves },
+  { label: 'Cyclone', query: 'Cyclone warning safety precautions', icon: Radio },
+  { label: 'Wildfire', query: 'Wildfire and smoke safety guidelines', icon: Flame },
+  { label: 'First Aid', query: 'Emergency first aid and CPR steps', icon: HeartPulse },
+  { label: 'Go-Bag Kit', query: 'What items go into a 72-hour disaster survival kit?', icon: Package },
 ];
 
 export const DisasterChatbot = ({
@@ -431,19 +431,18 @@ export const DisasterChatbot = ({
       {/* Chatbot Header */}
       <header className="chatbot-header">
         <div className="chatbot-header-left">
-          <div className="bot-avatar-wrapper">
-            <Bot size={20} className="bot-avatar-icon" />
-            <span className="bot-online-dot"></span>
+          <div className="bot-avatar-wrapper gemini-gradient">
+            <Sparkles size={18} className="bot-avatar-icon text-white" />
           </div>
-          <div>
+          <div className="bot-header-info">
             <div className="bot-header-title-row">
-              <h2 className="bot-title">DisasterShield AI Assistant</h2>
-              <span className="bot-ai-badge">
-                <Sparkles size={11} />
-                <span>AI 24/7</span>
+              <h2 className="bot-title">DisasterShield AI</h2>
+              <span className="bot-ai-badge gemini-badge">
+                <Sparkles size={10} />
+                <span>Gemini 2.0</span>
               </span>
             </div>
-            <p className="bot-subtitle">Live Incident Telemetry & Life-Saving Guidance</p>
+            <p className="bot-subtitle">AI Disaster & Emergency Safety Companion</p>
           </div>
         </div>
 
@@ -520,8 +519,8 @@ export const DisasterChatbot = ({
           return (
             <div key={msg.id} className={`chat-message-row ${isBot ? 'bot-row' : 'user-row'}`}>
               {isBot && (
-                <div className="msg-avatar bot-avatar">
-                  <ShieldAlert size={16} />
+                <div className="msg-avatar bot-avatar gemini-small-avatar">
+                  <Sparkles size={14} />
                 </div>
               )}
 
@@ -604,7 +603,7 @@ export const DisasterChatbot = ({
 
               {!isBot && (
                 <div className="msg-avatar user-avatar">
-                  <User size={16} />
+                  <User size={14} />
                 </div>
               )}
             </div>
@@ -614,8 +613,8 @@ export const DisasterChatbot = ({
         {/* Typing Animation State */}
         {isTyping && (
           <div className="chat-message-row bot-row">
-            <div className="msg-avatar bot-avatar">
-              <ShieldAlert size={16} />
+            <div className="msg-avatar bot-avatar gemini-small-avatar">
+              <Sparkles size={14} />
             </div>
             <div className="chat-bubble bot-bubble typing-bubble">
               <div className="typing-indicator">
@@ -623,7 +622,7 @@ export const DisasterChatbot = ({
                 <span className="typing-dot"></span>
                 <span className="typing-dot"></span>
               </div>
-              <span className="typing-label">Analyzing emergency protocols...</span>
+              <span className="typing-label">Gemini is writing...</span>
             </div>
           </div>
         )}
@@ -651,7 +650,7 @@ export const DisasterChatbot = ({
                   handleSend();
                 }
               }}
-              placeholder="Ask safety steps, first aid, active hazards, or nearest shelters..."
+              placeholder="Ask safety protocols, first aid, nearby shelters..."
               className="chat-textarea"
               rows={1}
             />

@@ -348,11 +348,10 @@ export const DisasterMapPage = () => {
         className={`floating-ai-launcher-btn ${showChatbot ? 'active' : ''}`}
         title="Open DisasterShield AI Emergency Assistant"
       >
-        <div className="floating-launcher-inner">
-          <Bot size={22} className="floating-bot-icon" />
-          <span className="floating-pulse-ring"></span>
+        <div className="floating-launcher-inner gemini-gradient">
+          <Sparkles size={18} className="floating-bot-icon" />
         </div>
-        <span className="floating-btn-text">AI Assistant</span>
+        <span className="floating-btn-text">DisasterShield AI</span>
       </button>
 
       {/* DisasterShield AI Chatbot Assistant Modal */}
