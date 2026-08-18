@@ -66,10 +66,29 @@ export const DisasterSidebar = ({
         onClick={() => setIsCollapsed(!isCollapsed)}
         title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
-        {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
 
-      {!isCollapsed && (
+      {isCollapsed ? (
+        <div
+          className="sidebar-collapsed-strip"
+          onClick={() => setIsCollapsed(false)}
+          title="Click to expand live disaster feed"
+        >
+          <div className="collapsed-indicator">
+            <span className="live-pulse-dot"></span>
+          </div>
+          <div className="collapsed-vertical-text">
+            <span>LIVE FEED</span>
+            <span className="collapsed-count">({filteredDisasters.length})</span>
+          </div>
+          {criticalCount > 0 && (
+            <div className="collapsed-alert-chip" title={`${criticalCount} Critical Alerts`}>
+              <span>{criticalCount}</span>
+            </div>
+          )}
+        </div>
+      ) : (
         <div className="sidebar-inner">
           {/* Header */}
           <div className="sidebar-header">

@@ -205,7 +205,7 @@ export const DisasterMap = ({
       streetViewControl: false,
       rotateControl: false,
       fullscreenControl: false,
-      backgroundColor: '#0f172a',
+      backgroundColor: '#142842',
       minZoom: 2,
       maxZoom: 18,
       gestureHandling: 'greedy',
