@@ -1,30 +1,27 @@
-// rescue.routes.js
-// TODO: Wire up rescue controller handlers to their routes.
-
 import { Router } from 'express';
 import {
-  getAllRescues,
-  getRescueById,
-  createRescue,
-  updateRescue,
-  deleteRescue,
+  loginRescueTeam,
+  registerRescueTeam,
+  getAllRescueTeams,
+  getRescueTeamById,
+  updateRescueTeamStatus,
+  getPrioritizedRescues,
+  handleMissionAction,
 } from '../controllers/rescue.controller.js';
 
 const router = Router();
 
-// GET    /api/rescue
-router.get('/', getAllRescues);
+// Authentication & Profile
+router.post('/login', loginRescueTeam);
+router.post('/register', registerRescueTeam);
+router.get('/teams', getAllRescueTeams);
+router.get('/teams/:id', getRescueTeamById);
+router.put('/teams/:id/status', updateRescueTeamStatus);
 
-// GET    /api/rescue/:id
-router.get('/:id', getRescueById);
+// Smart Location-based Prioritization Engine
+router.get('/prioritize', getPrioritizedRescues);
 
-// POST   /api/rescue
-router.post('/', createRescue);
-
-// PUT    /api/rescue/:id
-router.put('/:id', updateRescue);
-
-// DELETE /api/rescue/:id
-router.delete('/:id', deleteRescue);
+// Mission Execution Actions
+router.post('/mission/action', handleMissionAction);
 
 export default router;

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.61.9",
     "@react-google-maps/api": "^2.20.8",
     "axios": "^1.19.0",
     "lucide-react": "^1.31.0",
