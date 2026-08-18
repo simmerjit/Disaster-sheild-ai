@@ -225,6 +225,14 @@ export const AuthPortal = ({ onLoginSuccess }) => {
 
   return (
     <div className="auth-portal-backdrop">
+      {/* Animated background elements */}
+      <div className="auth-bg-aurora" aria-hidden="true">
+        <div className="aurora-orb aurora-orb-1"></div>
+        <div className="aurora-orb aurora-orb-2"></div>
+        <div className="aurora-orb aurora-orb-3"></div>
+      </div>
+      <div className="auth-bg-grid" aria-hidden="true"></div>
+
       <div className="auth-portal-card">
         {/* Top Branding Banner */}
         <div className="auth-brand-strip">
@@ -368,6 +376,25 @@ export const AuthPortal = ({ onLoginSuccess }) => {
                 </div>
               </div>
             </form>
+
+            {/* Quick Citizen Access */}
+            <div className="auth-divider">
+              <span>OR EXPLORE AS A CITIZEN</span>
+            </div>
+
+            <button
+              type="button"
+              className="auth-submit-btn citizen-quick-btn"
+              onClick={handleCitizenQuickLogin}
+              disabled={loading}
+            >
+              {loading ? <span className="rescue-spinner"></span> : <Shield size={16} />}
+              <span>Continue as Citizen Observer</span>
+              <ArrowRight size={14} className="citizen-arrow" />
+            </button>
+            <p className="citizen-helper-text">
+              Access live disaster map, weather, shelters &amp; AI assistant — no account needed
+            </p>
           </div>
         )}
 

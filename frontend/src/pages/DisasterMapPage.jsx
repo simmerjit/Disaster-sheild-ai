@@ -185,6 +185,8 @@ export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueComman
             <span className="live-pulse-dot red"></span>
           </button>
 
+          <div className="nav-divider" aria-hidden="true"></div>
+
           <button
             onClick={() => {
               if (selectedDisaster) {

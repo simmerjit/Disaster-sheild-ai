@@ -347,159 +347,154 @@ export const DisasterMap = ({
           )}
       </GoogleMap>
 
-      {/* Floating Map Custom Controls Bar */}
-      <div className="map-floating-controls">
-        {/* Zoom In/Out */}
-        <div className="control-btn-group">
-          <button onClick={handleZoomIn} className="map-ctrl-btn" title="Zoom In (+)">
+      {/* Floating Map Unified Command Dock */}
+      <div className="map-floating-dock">
+        {/* Navigation & Zoom Controls */}
+        <div className="dock-group">
+          <button onClick={handleZoomIn} className="dock-btn" title="Zoom In (+)">
             <ZoomIn size={16} />
           </button>
-          <button onClick={handleZoomOut} className="map-ctrl-btn" title="Zoom Out (-)">
+          <button onClick={handleZoomOut} className="dock-btn" title="Zoom Out (-)">
             <ZoomOut size={16} />
           </button>
-        </div>
-
-        {/* Fit Bounds / Center View */}
-        <div className="control-btn-group">
-          <button onClick={handleFitBounds} className="map-ctrl-btn" title="Fit All Events in View">
+          <button onClick={handleFitBounds} className="dock-btn" title="Fit All Events in View">
             <Maximize2 size={16} />
           </button>
-          <button onClick={handleResetView} className="map-ctrl-btn" title="Reset World View">
+          <button onClick={handleResetView} className="dock-btn" title="Reset World View">
             <Compass size={16} />
           </button>
         </div>
 
-        {/* Nearby Emergency Facilities Trigger (Google Places) */}
-        <button
-          onClick={() => {
-            if (showFacilitiesPanel) {
-              if (onToggleFacilitiesPanel) onToggleFacilitiesPanel(false);
-            } else {
-              // Open for selected disaster, or user location, or center of map
-              if (selectedDisaster) {
-                if (onSetFacilitiesOrigin) {
-                  onSetFacilitiesOrigin({
+        <div className="dock-divider" aria-hidden="true"></div>
+
+        {/* Crisis Incident Tools */}
+        <div className="dock-group">
+          <button
+            onClick={() => {
+              if (showFacilitiesPanel) {
+                if (onToggleFacilitiesPanel) onToggleFacilitiesPanel(false);
+              } else {
+                if (selectedDisaster) {
+                  if (onSetFacilitiesOrigin) {
+                    onSetFacilitiesOrigin({
+                      latitude: Number(selectedDisaster.latitude),
+                      longitude: Number(selectedDisaster.longitude),
+                      name: selectedDisaster.title,
+                      type: 'disaster',
+                    });
+                  }
+                } else if (userCoords) {
+                  if (onSetFacilitiesOrigin) {
+                    onSetFacilitiesOrigin({
+                      latitude: Number(userCoords.latitude),
+                      longitude: Number(userCoords.longitude),
+                      name: 'Your Location',
+                      type: 'user',
+                    });
+                  }
+                }
+                if (onToggleFacilitiesPanel) onToggleFacilitiesPanel(true);
+              }
+            }}
+            className={`dock-btn btn-facilities ${showFacilitiesPanel ? 'active' : ''}`}
+            title="Find Nearby Emergency Facilities (Google Places)"
+          >
+            <Hospital size={16} />
+          </button>
+
+          <button
+            onClick={() => {
+              if (weatherTarget) {
+                onSetWeatherTarget(null);
+              } else {
+                if (selectedDisaster) {
+                  onSetWeatherTarget({
                     latitude: Number(selectedDisaster.latitude),
                     longitude: Number(selectedDisaster.longitude),
                     name: selectedDisaster.title,
-                    type: 'disaster',
+                    type: selectedDisaster.type,
                   });
-                }
-              } else if (userCoords) {
-                if (onSetFacilitiesOrigin) {
-                  onSetFacilitiesOrigin({
+                } else if (userCoords) {
+                  onSetWeatherTarget({
                     latitude: Number(userCoords.latitude),
                     longitude: Number(userCoords.longitude),
-                    name: 'Your Location',
-                    type: 'user',
+                    name: 'Your Current Location',
+                    type: 'user_location',
                   });
+                } else if (map) {
+                  const center = map.getCenter();
+                  if (center) {
+                    onSetWeatherTarget({
+                      latitude: center.lat(),
+                      longitude: center.lng(),
+                      name: 'Map Center Position',
+                      type: 'map_center',
+                    });
+                  }
                 }
               }
-              if (onToggleFacilitiesPanel) onToggleFacilitiesPanel(true);
+            }}
+            className={`dock-btn btn-weather ${weatherTarget ? 'active' : ''}`}
+            title="Toggle Live Weather HUD"
+          >
+            <CloudSun size={17} />
+          </button>
+
+          <button
+            onClick={() => {
+              if (onToggleNavTool) onToggleNavTool(!showNavTool);
+            }}
+            className={`dock-btn btn-nav ${showNavTool ? 'active' : ''}`}
+            title="Toggle Evacuation & Navigation Tool"
+          >
+            <Route size={16} />
+          </button>
+
+          <button
+            onClick={() => setWeatherInspectorActive(!weatherInspectorActive)}
+            className={`dock-btn btn-inspector ${weatherInspectorActive ? 'active-pulse' : ''}`}
+            title={
+              weatherInspectorActive
+                ? 'Weather Inspector Active (Click map to read weather)'
+                : 'Activate Weather Inspector (Click anywhere on map)'
             }
-          }}
-          className={`map-ctrl-btn facilities-tool-btn ${showFacilitiesPanel ? 'active' : ''}`}
-          title="Find Nearby Emergency Facilities (Google Places)"
-        >
-          <Hospital size={16} />
-        </button>
+          >
+            <HelpCircle size={16} />
+          </button>
+        </div>
 
-        {/* Weather Tool Trigger */}
-        <button
-          onClick={() => {
-            if (weatherTarget) {
-              onSetWeatherTarget(null);
-            } else {
-              if (selectedDisaster) {
-                onSetWeatherTarget({
-                  latitude: Number(selectedDisaster.latitude),
-                  longitude: Number(selectedDisaster.longitude),
-                  name: selectedDisaster.title,
-                  type: selectedDisaster.type,
-                });
-              } else if (userCoords) {
-                onSetWeatherTarget({
-                  latitude: Number(userCoords.latitude),
-                  longitude: Number(userCoords.longitude),
-                  name: 'Your Current Location',
-                  type: 'user_location',
-                });
-              } else if (map) {
-                const center = map.getCenter();
-                if (center) {
-                  onSetWeatherTarget({
-                    latitude: center.lat(),
-                    longitude: center.lng(),
-                    name: 'Map Center Position',
-                    type: 'map_center',
-                  });
-                }
-              }
-            }
-          }}
-          className={`map-ctrl-btn weather-tool-btn ${weatherTarget ? 'active' : ''}`}
-          title="Toggle Live Weather HUD"
-        >
-          <CloudSun size={17} />
-        </button>
+        <div className="dock-divider" aria-hidden="true"></div>
 
-        {/* Navigation & Evacuation Tool Trigger */}
-        <button
-          onClick={() => {
-            if (onToggleNavTool) onToggleNavTool(!showNavTool);
-          }}
-          className={`map-ctrl-btn nav-tool-btn ${showNavTool ? 'active' : ''}`}
-          title="Toggle Evacuation & Navigation Tool"
-        >
-          <Route size={16} />
-        </button>
+        {/* View Modes & Layer Toggles */}
+        <div className="dock-group">
+          <button
+            onClick={() => setShowRadiusCircles(!showRadiusCircles)}
+            className={`dock-btn ${showRadiusCircles ? 'active' : ''}`}
+            title={showRadiusCircles ? 'Hide impact radii' : 'Show impact radii'}
+          >
+            {showRadiusCircles ? <Eye size={16} /> : <EyeOff size={16} />}
+          </button>
 
-        {/* Weather Inspector Click-to-Inspect Mode */}
-        <button
-          onClick={() => setWeatherInspectorActive(!weatherInspectorActive)}
-          className={`map-ctrl-btn inspector-btn ${weatherInspectorActive ? 'active-pulse' : ''}`}
-          title={
-            weatherInspectorActive
-              ? 'Weather Inspector Active (Click map to read weather)'
-              : 'Activate Weather Inspector (Click anywhere on map)'
-          }
-        >
-          <HelpCircle size={16} />
-        </button>
-
-        {/* Radius Toggle */}
-        <button
-          onClick={() => setShowRadiusCircles(!showRadiusCircles)}
-          className={`map-ctrl-btn ${showRadiusCircles ? 'active' : ''}`}
-          title={showRadiusCircles ? 'Hide impact radii' : 'Show impact radii'}
-        >
-          {showRadiusCircles ? <Eye size={16} /> : <EyeOff size={16} />}
-        </button>
-
-        {/* Map Type / Theme Selector */}
-        <div className="map-type-dropdown">
           <button
             onClick={() => {
               const types = ['roadmap', 'satellite', 'hybrid', 'terrain'];
               const nextIdx = (types.indexOf(mapTypeId) + 1) % types.length;
               setMapTypeId(types[nextIdx]);
             }}
-            className="map-ctrl-btn map-type-btn"
-            title={`Map type: ${mapTypeId.toUpperCase()} (Click to toggle)`}
+            className={`dock-btn btn-map-type ${mapTypeId !== 'roadmap' ? 'active' : ''}`}
+            title={`Map Theme: ${mapTypeId.toUpperCase()} (Click to toggle)`}
           >
             <MapIcon size={16} />
-            <span className="type-label">{mapTypeId.slice(0, 3).toUpperCase()}</span>
+          </button>
+
+          <button
+            onClick={() => setShowLayersMenu(!showLayersMenu)}
+            className={`dock-btn ${showLayersMenu ? 'active' : ''}`}
+            title="Toggle data layers"
+          >
+            <Layers size={16} />
           </button>
         </div>
-
-        {/* Layers Overlay Toggle */}
-        <button
-          onClick={() => setShowLayersMenu(!showLayersMenu)}
-          className={`map-ctrl-btn ${showLayersMenu ? 'active' : ''}`}
-          title="Toggle data layers"
-        >
-          <Layers size={16} />
-        </button>
       </div>
 
       {/* Weather Inspector Status Banner */}
