@@ -20,10 +20,31 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    password: {
+      type: String,
+      default: 'secure123',
+    },
     role: {
       type: String,
-      enum: ['citizen', 'rescue_worker', 'admin'],
+      enum: ['citizen', 'rescue_worker', 'coordinator', 'admin'],
       default: 'citizen',
+    },
+    organization: {
+      type: String,
+      default: 'General Public',
+      trim: true,
+    },
+    specialization: {
+      type: String,
+      default: 'general_sar',
+    },
+    teamCode: {
+      type: String,
+      trim: true,
+    },
+    rescueTeamId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RescueTeam',
     },
     phoneNumber: {
       type: String,
@@ -33,9 +54,9 @@ const userSchema = new mongoose.Schema(
       type: String,
     },
     location: {
-      latitude: { type: Number },
-      longitude: { type: Number },
-      address: { type: String },
+      latitude: { type: Number, default: 28.6139 },
+      longitude: { type: Number, default: 77.209 },
+      address: { type: String, default: 'New Delhi, India' },
     },
   },
   { timestamps: true }

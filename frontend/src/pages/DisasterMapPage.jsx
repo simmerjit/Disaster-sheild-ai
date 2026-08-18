@@ -5,6 +5,7 @@ import DisasterSidebar from '../components/DisasterSidebar';
 import DisasterFilters from '../components/DisasterFilters';
 import DisasterDetailsModal from '../components/DisasterDetailsModal';
 import DisasterChatbot from '../components/DisasterChatbot';
+import RescueLoginModal from '../components/RescueLoginModal';
 import {
   AlertTriangle,
   RefreshCw,
@@ -15,6 +16,10 @@ import {
   Navigation,
   Bot,
   Sparkles,
+  Radio,
+  LogOut,
+  User,
+  Shield,
 } from 'lucide-react';
 
 const initialFilters = {
@@ -25,7 +30,7 @@ const initialFilters = {
   search: '',
 };
 
-export const DisasterMapPage = () => {
+export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueCommand }) => {
   const [disasters, setDisasters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,6 +52,9 @@ export const DisasterMapPage = () => {
 
   // Disaster Details Modal state
   const [detailDisaster, setDetailDisaster] = useState(null);
+
+  // Rescue Login Modal state
+  const [showRescueLoginModal, setShowRescueLoginModal] = useState(false);
 
   // Load disasters from Express backend
   const loadDisasters = useCallback(async () => {
@@ -158,6 +166,25 @@ export const DisasterMapPage = () => {
 
         {/* Center: Nav Buttons */}
         <nav className="header-nav-center">
+          {/* Rescue Command Station launcher */}
+          <button
+            onClick={() => {
+              if (onOpenRescueCommand) {
+                onOpenRescueCommand();
+              } else {
+                setShowRescueLoginModal(true);
+              }
+            }}
+            className={`nav-header-btn rescue-portal-btn ${rescueTeam ? 'logged-in' : ''}`}
+            title="Open Rescue Team Command Dashboard & Priority Queue"
+          >
+            <Radio size={15} className="pulse-icon" />
+            <span>
+              {rescueTeam ? `Rescue Cmd: ${rescueTeam.teamCode || 'Active'}` : 'Rescue Team Command'}
+            </span>
+            <span className="live-pulse-dot red"></span>
+          </button>
+
           <button
             onClick={() => {
               if (selectedDisaster) {
@@ -236,12 +263,32 @@ export const DisasterMapPage = () => {
           </button>
         </nav>
 
-        {/* Right: Live Status */}
+        {/* Right: User Profile HUD & Sign Out */}
         <div className="header-right-group">
-          <div className="live-status-chip">
-            <span className="live-pulse-dot"></span>
-            <span>GDACS &bull; USGS &bull; NASA &bull; NDRF</span>
-          </div>
+          {user && (
+            <div className="user-profile-hud-chip">
+              <div className="user-avatar-circle">
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} />
+                ) : (
+                  <span>{user.name?.charAt(0)?.toUpperCase() || 'U'}</span>
+                )}
+              </div>
+              <div className="user-info-meta">
+                <span className="user-name-text">{user.name}</span>
+                <span className={`user-role-tag ${user.role || 'citizen'}`}>
+                  {user.role === 'rescue_worker' ? '🛡️ Rescuer' : user.role === 'coordinator' ? '🏛️ Coordinator' : '👤 Citizen'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {onLogout && (
+            <button onClick={onLogout} className="header-logout-btn" title="Sign Out of Session">
+              <LogOut size={15} />
+              <span>Sign Out</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -341,6 +388,15 @@ export const DisasterMapPage = () => {
           }}
         />
       )}
+
+      {/* Rescue Team Quick Switch Modal */}
+      <RescueLoginModal
+        isOpen={showRescueLoginModal}
+        onClose={() => setShowRescueLoginModal(false)}
+        onLoginSuccess={() => {
+          if (onOpenRescueCommand) onOpenRescueCommand();
+        }}
+      />
 
       {/* Floating AI Assistant Trigger Button */}
       <button

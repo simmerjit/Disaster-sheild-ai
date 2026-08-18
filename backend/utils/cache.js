@@ -89,6 +89,13 @@ class MemoryCache {
   }
 
   /**
+   * Return array of active cache keys
+   */
+  keys() {
+    return Array.from(this.cache.keys());
+  }
+
+  /**
    * Clear all items in cache
    */
   clear() {
