@@ -47,6 +47,7 @@ import {
   createSOSAlert,
   updateSOSAlert,
 } from '../services/rescueApi';
+import { darkMapStyle } from '../utils/mapStyles';
 
 const SPECIALIZATION_MAP = {
   general_sar: { label: 'General SAR', icon: Compass, color: '#38bdf8' },
@@ -62,27 +63,6 @@ const mapContainerStyle = {
   height: '100%',
   borderRadius: '16px',
 };
-
-const darkMapStyle = [
-  { elementType: 'geometry', stylers: [{ color: '#131b26' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#131b26' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#746855' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-  { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-  { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: '#182433' }] },
-  { featureType: 'poi.park', elementType: 'labels.text.fill', stylers: [{ color: '#6b9a76' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#253447' }] },
-  { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1c2838' }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3b4e69' }] },
-  { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#1f2835' }] },
-  { featureType: 'road.highway', elementType: 'labels.text.fill', stylers: [{ color: '#f3d19c' }] },
-  { featureType: 'transit', elementType: 'geometry', stylers: [{ color: '#2f3948' }] },
-  { featureType: 'transit.station', elementType: 'labels.text.fill', stylers: [{ color: '#d59563' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#091018' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#515c6d' }] },
-  { featureType: 'water', elementType: 'labels.text.stroke', stylers: [{ color: '#17263c' }] },
-];
 
 export const RescueTeamDashboard = ({
   team,
