@@ -14,6 +14,7 @@
     "@react-google-maps/api": "^2.20.8",
     "axios": "^1.19.0",
     "lucide-react": "^1.31.0",
+    "ogl": "^1.0.11",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

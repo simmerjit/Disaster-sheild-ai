@@ -1,29 +1,21 @@
 import React, { useState } from 'react';
 import {
-  ShieldAlert,
-  Radio,
-  MapPin,
-  Users,
+  Shield,
   Lock,
   Mail,
   User,
   Phone,
-  Compass,
-  Anchor,
-  HeartPulse,
-  Flame,
-  Wind,
-  CheckCircle2,
-  AlertTriangle,
-  LogIn,
-  UserPlus,
-  Zap,
+  Radio,
+  MapPin,
+  Eye,
+  EyeOff,
   ArrowRight,
-  Shield,
+  AlertCircle,
 } from 'lucide-react';
 import { useAuthContext } from '../context/AuthContext';
+import SoftAurora from './SoftAurora';
 
-const QUICK_PRESETS = [
+const RESPONDER_PRESETS = [
   {
     teamName: 'NDRF 8th Bn - Alpha SAR Taskforce',
     teamCode: 'NDRF-ALPHA-08',
@@ -31,9 +23,8 @@ const QUICK_PRESETS = [
     organization: 'National Disaster Response Force (NDRF)',
     specialization: 'urban_search_rescue',
     role: 'rescue_worker',
-    icon: ShieldAlert,
-    color: '#f59e0b',
-    desc: 'Urban search & rescue, acoustic life detection, heavy extraction.',
+    badge: 'USAR 08',
+    desc: 'Urban search & rescue extraction unit',
   },
   {
     teamName: 'SDRF Coastal & Marine Flood Rescue',
@@ -42,9 +33,8 @@ const QUICK_PRESETS = [
     organization: 'State Disaster Response Force (SDRF)',
     specialization: 'flood_water',
     role: 'rescue_worker',
-    icon: Anchor,
-    color: '#06b6d4',
-    desc: 'Swift-water evacuation, inflatable craft, marine sonar search.',
+    badge: 'FLOOD 02',
+    desc: 'Swift-water evacuation & marine search',
   },
   {
     teamName: 'Rapid Medical Evac & Trauma Response',
@@ -53,9 +43,8 @@ const QUICK_PRESETS = [
     organization: 'Disaster Health Response Network',
     specialization: 'medical_evac',
     role: 'rescue_worker',
-    icon: HeartPulse,
-    color: '#ec4899',
-    desc: 'Mobile ICU, trauma stabilization, critical emergency triage.',
+    badge: 'MEDEVAC',
+    desc: 'Trauma stabilization & mobile ICU triage',
   },
   {
     teamName: 'Eastern Cyclone & Storm Strike Unit',
@@ -64,24 +53,24 @@ const QUICK_PRESETS = [
     organization: 'National Disaster Response Force (NDRF)',
     specialization: 'cyclone_storm',
     role: 'rescue_worker',
-    icon: Wind,
-    color: '#a855f7',
-    desc: 'Heavy dewatering, road clearance, structural evacuation.',
+    badge: 'CYCLONE 03',
+    desc: 'Storm clearance & structural rescue',
   },
 ];
 
 export const AuthPortal = ({ onLoginSuccess }) => {
   const { login, registerOrSync } = useAuthContext();
-  const [activeTab, setActiveTab] = useState('login'); // 'login' (first) | 'register'
+  const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Login form state
   const [loginEmailOrCode, setLoginEmailOrCode] = useState('');
   const [loginPassword, setLoginPassword] = useState('rescue123');
 
   // Registration form state
-  const [regRole, setRegRole] = useState('rescue_worker'); // 'rescue_worker', 'coordinator', 'citizen'
+  const [regRole, setRegRole] = useState('rescue_worker');
   const [regForm, setRegForm] = useState({
     name: '',
     email: '',
@@ -91,7 +80,7 @@ export const AuthPortal = ({ onLoginSuccess }) => {
     specialization: 'urban_search_rescue',
     teamCode: '',
     phoneNumber: '',
-    address: 'Command Center, New Delhi',
+    address: 'Command Headquarters, New Delhi',
     latitude: 28.6139,
     longitude: 77.209,
   });
@@ -100,7 +89,7 @@ export const AuthPortal = ({ onLoginSuccess }) => {
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     if (!loginEmailOrCode.trim()) {
-      setError('Please enter your Email, Team Call Sign, or Identifier.');
+      setError('Please enter your email or unit identifier.');
       return;
     }
 
@@ -112,14 +101,14 @@ export const AuthPortal = ({ onLoginSuccess }) => {
         if (onLoginSuccess) onLoginSuccess(data.user, data.rescueTeam);
       }
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Login failed. Please check credentials.');
+      setError(err.response?.data?.message || err.message || 'Authentication failed. Please verify credentials.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle Quick Login
-  const handleQuickPresetLogin = async (preset) => {
+  // Handle Quick Responder Preset Login
+  const handlePresetLogin = async (preset) => {
     setLoading(true);
     setError(null);
     try {
@@ -128,7 +117,6 @@ export const AuthPortal = ({ onLoginSuccess }) => {
         if (onLoginSuccess) onLoginSuccess(data.user, data.rescueTeam);
       }
     } catch (err) {
-      // Fallback: register the preset on-the-fly
       try {
         const regData = await registerOrSync({
           name: preset.teamName,
@@ -137,7 +125,7 @@ export const AuthPortal = ({ onLoginSuccess }) => {
           organization: preset.organization,
           specialization: preset.specialization,
           teamCode: preset.teamCode,
-          location: { latitude: 28.6139, longitude: 77.209, address: 'Command Post' },
+          location: { latitude: 28.6139, longitude: 77.209, address: 'Command Base' },
         });
         if (regData?.success) {
           if (onLoginSuccess) onLoginSuccess(regData.user, regData.rescueTeam);
@@ -150,14 +138,14 @@ export const AuthPortal = ({ onLoginSuccess }) => {
     }
   };
 
-  // Quick Citizen Observer Login
-  const handleCitizenQuickLogin = async () => {
+  // Quick Guest / Citizen Access
+  const handleGuestLogin = async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await registerOrSync({
-        name: 'Citizen Observer',
-        email: `citizen_${Date.now()}@disastershield.org`,
+        name: 'Guest Observer',
+        email: `guest_${Date.now()}@disastershield.org`,
         role: 'citizen',
         organization: 'Public Network',
         location: { latitude: 28.6139, longitude: 77.209, address: 'New Delhi, India' },
@@ -166,7 +154,7 @@ export const AuthPortal = ({ onLoginSuccess }) => {
         if (onLoginSuccess) onLoginSuccess(data.user, null);
       }
     } catch (err) {
-      setError(err.message || 'Failed to sign in as guest.');
+      setError(err.message || 'Failed to start guest session.');
     } finally {
       setLoading(false);
     }
@@ -176,7 +164,7 @@ export const AuthPortal = ({ onLoginSuccess }) => {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     if (!regForm.name.trim() || !regForm.email.trim()) {
-      setError('Name and Email are required.');
+      setError('Name and email are required.');
       return;
     }
 
@@ -189,7 +177,7 @@ export const AuthPortal = ({ onLoginSuccess }) => {
         location: {
           latitude: Number(regForm.latitude) || 28.6139,
           longitude: Number(regForm.longitude) || 77.209,
-          address: regForm.address || 'Field Headquarters',
+          address: regForm.address || 'Field Station',
         },
       };
 
@@ -224,361 +212,371 @@ export const AuthPortal = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="auth-portal-backdrop">
-      {/* Animated background elements */}
-      <div className="auth-bg-aurora" aria-hidden="true">
-        <div className="aurora-orb aurora-orb-1"></div>
-        <div className="aurora-orb aurora-orb-2"></div>
-        <div className="aurora-orb aurora-orb-3"></div>
-      </div>
-      <div className="auth-bg-grid" aria-hidden="true"></div>
-
-      <div className="auth-portal-card">
-        {/* Top Branding Banner */}
-        <div className="auth-brand-strip">
-          <div className="brand-logo-cluster">
-            <div className="brand-shield-glow">
-              <ShieldAlert size={32} className="text-red" />
-            </div>
-            <div>
-              <div className="auth-portal-tag">DISASTERSHIELD AI SECURE GATEWAY</div>
-              <h1 className="auth-portal-title">Disaster Shield Command Network</h1>
-            </div>
+    <div className="auth-minimal-backdrop">
+      {/* ── 1. Minimal Floating Navbar ───────────────────────── */}
+      <header className="auth-minimal-nav">
+        <div className="nav-brand">
+          <div className="nav-logo-box">
+            <Shield size={16} strokeWidth={2.2} />
           </div>
-          <p className="auth-portal-subtext">
-            Official Emergency Response &bull; GDACS/USGS/ISRO Live Telemetry &bull; Rescuer Priority Dispatch
-          </p>
+          <span className="nav-title">DisasterShield</span>
         </div>
 
-        {/* Auth Mode Tabs (Sign In FIRST) */}
-        <div className="auth-portal-tabs">
+        <div className="nav-actions">
           <button
-            className={`auth-tab-btn ${activeTab === 'login' ? 'active' : ''}`}
+            type="button"
+            className="nav-link-btn"
+            onClick={handleGuestLogin}
+            disabled={loading}
+          >
+            Live Map
+          </button>
+          <button
+            type="button"
+            className="nav-outline-btn"
             onClick={() => {
-              setActiveTab('login');
+              setActiveTab(activeTab === 'login' ? 'register' : 'login');
               setError(null);
             }}
           >
-            <LogIn size={16} />
-            <span>Sign In (First)</span>
-          </button>
-          <button
-            className={`auth-tab-btn ${activeTab === 'register' ? 'active' : ''}`}
-            onClick={() => {
-              setActiveTab('register');
-              setError(null);
-            }}
-          >
-            <UserPlus size={16} />
-            <span>Create New Account / Register Unit</span>
+            {activeTab === 'login' ? 'Sign Up' : 'Sign In'}
           </button>
         </div>
+      </header>
 
-        {/* Error notification */}
-        {error && (
-          <div className="auth-error-chip">
-            <AlertTriangle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
+      {/* ── 2. Fullscreen React Bits Soft Aurora Layer ──────── */}
+      <SoftAurora
+speed={0.6}
+  scale={1.5}
+  brightness={1}
+  color1="#f7f7f7"
+  color2="#e100ff"
+  noiseFrequency={2.5}
+  noiseAmplitude={1}
+  bandHeight={0.5}
+  bandSpread={1}
+  octaveDecay={0.1}
+  layerOffset={0}
+  colorSpeed={1}
+  enableMouseInteraction
+  mouseInfluence={0.25}
+      />
 
-        {/* ── TAB 1: SIGN IN (FIRST) ─────────────────────────── */}
-        {activeTab === 'login' && (
-          <div className="auth-tab-content">
-            {/* Quick 1-Click Responder Taskforces */}
-            <div className="quick-deploy-section">
-              <div className="section-label-row">
-                <Zap size={14} className="text-cyan" />
-                <span className="section-label">1-CLICK QUICK ACCESS (FIELD RESPONDERS)</span>
-              </div>
-              <div className="quick-presets-grid">
-                {QUICK_PRESETS.map((preset) => {
-                  const Icon = preset.icon;
-                  return (
-                    <div
-                      key={preset.teamCode}
-                      className="preset-team-card"
-                      onClick={() => handleQuickPresetLogin(preset)}
-                    >
-                      <div className="preset-top-row">
-                        <div
-                          className="preset-icon-box"
-                          style={{ background: `${preset.color}22`, color: preset.color }}
-                        >
-                          <Icon size={18} />
-                        </div>
-                        <span className="preset-code">{preset.teamCode}</span>
-                      </div>
-                      <h4 className="preset-name">{preset.teamName}</h4>
-                      <p className="preset-desc">{preset.desc}</p>
-                      <div className="preset-action">
-                        <span>Deploy Command Station</span>
-                        <ArrowRight size={13} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="auth-divider">
-              <span>OR SIGN IN WITH CREDENTIALS</span>
-            </div>
-
-            {/* Custom Login Form */}
-            <form onSubmit={handleLoginSubmit} className="auth-login-form">
-              <div className="form-group">
-                <label className="form-label">
-                  <Mail size={14} /> Email Address or Team Radio Call Sign
-                </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. NDRF-ALPHA-08 or rescuer@emergency.gov.in"
-                  value={loginEmailOrCode}
-                  onChange={(e) => setLoginEmailOrCode(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">
-                  <Lock size={14} /> Security Passkey / Password
-                </label>
-                <input
-                  type="password"
-                  className="form-input"
-                  placeholder="Enter responder passkey"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="login-actions-column">
-                <button type="submit" className="auth-submit-btn primary" disabled={loading}>
-                  {loading ? <span className="rescue-spinner"></span> : <LogIn size={16} />}
-                  <span>Sign In to DisasterShield Network</span>
-                </button>
-
-                <div className="auth-switch-helper">
-                  <span>Don't have an account?</span>
-                  <button
-                    type="button"
-                    className="switch-tab-link"
-                    onClick={() => {
-                      setActiveTab('register');
-                      setError(null);
-                    }}
-                  >
-                    Register as Citizen, Coordinator, or Rescue Unit
-                  </button>
-                </div>
-              </div>
-            </form>
-
-            {/* Quick Citizen Access */}
-            <div className="auth-divider">
-              <span>OR EXPLORE AS A CITIZEN</span>
-            </div>
-
-            <button
-              type="button"
-              className="auth-submit-btn citizen-quick-btn"
-              onClick={handleCitizenQuickLogin}
-              disabled={loading}
-            >
-              {loading ? <span className="rescue-spinner"></span> : <Shield size={16} />}
-              <span>Continue as Citizen Observer</span>
-              <ArrowRight size={14} className="citizen-arrow" />
-            </button>
-            <p className="citizen-helper-text">
-              Access live disaster map, weather, shelters &amp; AI assistant — no account needed
+      {/* ── 4. Centered Minimal Auth Card (Pixel Matched) ────── */}
+      <div className="auth-minimal-card-wrap">
+        <div className="auth-minimal-card">
+          {/* Header Typography */}
+          <div className="auth-card-header">
+            <h1 className="auth-card-title">
+              {activeTab === 'login' ? 'Welcome back' : 'Create an account'}
+            </h1>
+            <p className="auth-card-subtitle">
+              {activeTab === 'login'
+                ? 'Enter your credentials or choose a quick deployment profile'
+                : 'Register your rescue unit, coordinator profile, or citizen account'}
             </p>
           </div>
-        )}
 
-        {/* ── TAB 2: REGISTER NEW ACCOUNT / UNIT ──────────────── */}
-        {activeTab === 'register' && (
-          <div className="auth-tab-content">
-            <form onSubmit={handleRegisterSubmit} className="auth-register-form">
-              {/* Role Selection */}
-              <div className="form-group col-span-2">
-                <label className="form-label">Select Account Type / Operational Role</label>
-                <div className="role-selector-cards">
-                  <div
-                    className={`role-card ${regRole === 'rescue_worker' ? 'selected' : ''}`}
-                    onClick={() => {
-                      setRegRole('rescue_worker');
-                      setRegForm((p) => ({ ...p, role: 'rescue_worker', organization: 'National Disaster Response Force (NDRF)' }));
-                    }}
-                  >
-                    <ShieldAlert size={20} className="role-icon text-red" />
-                    <div>
-                      <div className="role-title">Rescue Responder Taskforce</div>
-                      <div className="role-sub">Access priority dispatch, live tactical map, and SOS triage</div>
-                    </div>
-                  </div>
+          {/* Minimal Horizontal Tabs */}
+          <div className="auth-minimal-tabs">
+            <button
+              type="button"
+              className={`minimal-tab ${activeTab === 'login' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('login');
+                setError(null);
+              }}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              className={`minimal-tab ${activeTab === 'register' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('register');
+                setError(null);
+              }}
+            >
+              Register
+            </button>
+          </div>
 
-                  <div
-                    className={`role-card ${regRole === 'coordinator' ? 'selected' : ''}`}
-                    onClick={() => {
-                      setRegRole('coordinator');
-                      setRegForm((p) => ({ ...p, role: 'coordinator', organization: 'State Disaster Management Authority' }));
-                    }}
-                  >
-                    <Compass size={20} className="role-icon text-cyan" />
-                    <div>
-                      <div className="role-title">Disaster Coordinator</div>
-                      <div className="role-sub">Monitor regional emergency logistics &amp; shelters</div>
-                    </div>
-                  </div>
+          {/* Error Banner */}
+          {error && (
+            <div className="auth-minimal-error">
+              <AlertCircle size={15} />
+              <span>{error}</span>
+            </div>
+          )}
 
-                  <div
-                    className={`role-card ${regRole === 'citizen' ? 'selected' : ''}`}
-                    onClick={() => {
-                      setRegRole('citizen');
-                      setRegForm((p) => ({ ...p, role: 'citizen', organization: 'General Public' }));
-                    }}
-                  >
-                    <User size={20} className="role-icon text-emerald" />
-                    <div>
-                      <div className="role-title">Citizen / Volunteer</div>
-                      <div className="role-sub">Early warning alerts, live weather &amp; evacuation tools</div>
-                    </div>
+          {/* ── TAB 1: LOGIN ─────────────────────────────────── */}
+          {activeTab === 'login' && (
+            <div className="auth-card-body">
+              <form onSubmit={handleLoginSubmit} className="minimal-form">
+                <div className="input-group">
+                  <label className="input-label">Email or Callsign</label>
+                  <div className="input-field-wrap">
+                    <Mail size={16} className="input-icon" />
+                    <input
+                      type="text"
+                      className="minimal-input"
+                      placeholder="name@agency.gov or NDRF-ALPHA-08"
+                      value={loginEmailOrCode}
+                      onChange={(e) => setLoginEmailOrCode(e.target.value)}
+                      required
+                    />
                   </div>
                 </div>
-              </div>
 
-              {/* Basic Details */}
-              <div className="form-group">
-                <label className="form-label">
-                  <User size={14} /> Full Name / Officer In Charge *
-                </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Commander Vikram Singh"
-                  value={regForm.name}
-                  onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">
-                  <Mail size={14} /> Official Email Address *
-                </label>
-                <input
-                  type="email"
-                  className="form-input"
-                  placeholder="e.g. v.singh@ndrf.gov.in"
-                  value={regForm.email}
-                  onChange={(e) => setRegForm({ ...regForm, email: e.target.value })}
-                  required
-                />
-              </div>
-
-              {regRole === 'rescue_worker' && (
-                <>
-                  <div className="form-group">
-                    <label className="form-label">
-                      <Radio size={14} /> Unit Call Sign / Identifier
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input text-uppercase"
-                      placeholder="e.g. SAR-NORTH-04"
-                      value={regForm.teamCode}
-                      onChange={(e) => setRegForm({ ...regForm, teamCode: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Agency / Organization</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. NDRF, SDRF, Coast Guard, Red Cross"
-                      value={regForm.organization}
-                      onChange={(e) => setRegForm({ ...regForm, organization: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Rescue Specialization</label>
-                    <select
-                      className="form-select"
-                      value={regForm.specialization}
-                      onChange={(e) => setRegForm({ ...regForm, specialization: e.target.value })}
+                <div className="input-group">
+                  <div className="label-row">
+                    <label className="input-label">Password</label>
+                    <button
+                      type="button"
+                      className="forgot-pass-btn"
+                      onClick={() => setLoginPassword('rescue123')}
                     >
-                      <option value="urban_search_rescue">Urban Search &amp; Collapse SAR (USAR)</option>
-                      <option value="flood_water">Flood &amp; Swift Water Rescue</option>
-                      <option value="medical_evac">Trauma &amp; Emergency Medical Evac</option>
-                      <option value="cyclone_storm">Cyclone &amp; Extreme Storm SAR</option>
-                      <option value="fire_hazmat">Wildfire &amp; Hazmat Containment</option>
-                      <option value="general_sar">General Emergency SAR</option>
-                    </select>
+                      Forgot password?
+                    </button>
                   </div>
-                </>
-              )}
+                  <div className="input-field-wrap">
+                    <Lock size={16} className="input-icon" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="minimal-input"
+                      placeholder="••••••••"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="input-action-btn"
+                      onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
 
-              <div className="form-group">
-                <label className="form-label">
-                  <Phone size={14} /> Emergency Contact Phone
-                </label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="+91 XXXXX XXXXX"
-                  value={regForm.phoneNumber}
-                  onChange={(e) => setRegForm({ ...regForm, phoneNumber: e.target.value })}
-                />
+                <button
+                  type="submit"
+                  className="btn-primary-white"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <span className="minimal-spinner"></span>
+                  ) : (
+                    <span>Continue</span>
+                  )}
+                </button>
+              </form>
+
+              {/* Minimal Divider */}
+              <div className="minimal-divider">
+                <span>or quick access</span>
               </div>
 
-              {/* Location Coordinates */}
-              <div className="form-group col-span-2">
-                <div className="location-header-row">
-                  <label className="form-label">Base Location &amp; Coordinates</label>
-                  <button type="button" className="detect-gps-btn" onClick={handleDetectGPS}>
-                    <MapPin size={13} />
-                    <span>Detect My Current GPS</span>
+              {/* Quick Presets Grid (2x2) */}
+              <div className="minimal-presets-grid">
+                {RESPONDER_PRESETS.map((preset) => (
+                  <button
+                    key={preset.teamCode}
+                    type="button"
+                    className="minimal-preset-card"
+                    onClick={() => handlePresetLogin(preset)}
+                    disabled={loading}
+                  >
+                    <div className="preset-card-top">
+                      <span className="preset-badge">{preset.badge}</span>
+                      <ArrowRight size={13} className="preset-arrow" />
+                    </div>
+                    <div className="preset-card-name">{preset.teamName}</div>
+                    <div className="preset-card-desc">{preset.desc}</div>
                   </button>
+                ))}
+              </div>
+
+              {/* Guest Access Button */}
+              <button
+                type="button"
+                className="btn-secondary-outline guest-btn"
+                onClick={handleGuestLogin}
+                disabled={loading}
+              >
+                <span>Continue as Guest Observer</span>
+                <ArrowRight size={15} />
+              </button>
+            </div>
+          )}
+
+          {/* ── TAB 2: REGISTER ──────────────────────────────── */}
+          {activeTab === 'register' && (
+            <div className="auth-card-body">
+              <form onSubmit={handleRegisterSubmit} className="minimal-form">
+                {/* Role Switcher */}
+                <div className="input-group">
+                  <label className="input-label">Account Type</label>
+                  <div className="minimal-role-pills">
+                    <button
+                      type="button"
+                      className={`role-pill ${regRole === 'rescue_worker' ? 'active' : ''}`}
+                      onClick={() => {
+                        setRegRole('rescue_worker');
+                        setRegForm((p) => ({
+                          ...p,
+                          role: 'rescue_worker',
+                          organization: 'National Disaster Response Force (NDRF)',
+                        }));
+                      }}
+                    >
+                      Rescue Unit
+                    </button>
+                    <button
+                      type="button"
+                      className={`role-pill ${regRole === 'coordinator' ? 'active' : ''}`}
+                      onClick={() => {
+                        setRegRole('coordinator');
+                        setRegForm((p) => ({
+                          ...p,
+                          role: 'coordinator',
+                          organization: 'State Disaster Management Authority',
+                        }));
+                      }}
+                    >
+                      Coordinator
+                    </button>
+                    <button
+                      type="button"
+                      className={`role-pill ${regRole === 'citizen' ? 'active' : ''}`}
+                      onClick={() => {
+                        setRegRole('citizen');
+                        setRegForm((p) => ({
+                          ...p,
+                          role: 'citizen',
+                          organization: 'Public Safety Network',
+                        }));
+                      }}
+                    >
+                      Citizen
+                    </button>
+                  </div>
                 </div>
-                <div className="coord-inputs-row">
-                  <input
-                    type="number"
-                    step="0.0001"
-                    className="form-input"
-                    placeholder="Latitude"
-                    value={regForm.latitude}
-                    onChange={(e) => setRegForm({ ...regForm, latitude: e.target.value })}
-                  />
-                  <input
-                    type="number"
-                    step="0.0001"
-                    className="form-input"
-                    placeholder="Longitude"
-                    value={regForm.longitude}
-                    onChange={(e) => setRegForm({ ...regForm, longitude: e.target.value })}
-                  />
+
+                <div className="input-group">
+                  <label className="input-label">Full Name</label>
+                  <div className="input-field-wrap">
+                    <User size={16} className="input-icon" />
+                    <input
+                      type="text"
+                      className="minimal-input"
+                      placeholder="Vikram Singh"
+                      value={regForm.name}
+                      onChange={(e) => setRegForm({ ...regForm, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="input-group">
+                  <label className="input-label">Email Address</label>
+                  <div className="input-field-wrap">
+                    <Mail size={16} className="input-icon" />
+                    <input
+                      type="email"
+                      className="minimal-input"
+                      placeholder="v.singh@agency.gov"
+                      value={regForm.email}
+                      onChange={(e) => setRegForm({ ...regForm, email: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {regRole === 'rescue_worker' && (
+                  <>
+                    <div className="input-row-split">
+                      <div className="input-group">
+                        <label className="input-label">Unit Callsign</label>
+                        <div className="input-field-wrap">
+                          <Radio size={16} className="input-icon" />
+                          <input
+                            type="text"
+                            className="minimal-input"
+                            placeholder="SAR-UNIT-04"
+                            value={regForm.teamCode}
+                            onChange={(e) => setRegForm({ ...regForm, teamCode: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="input-group">
+                        <label className="input-label">Specialization</label>
+                        <select
+                          className="minimal-select"
+                          value={regForm.specialization}
+                          onChange={(e) => setRegForm({ ...regForm, specialization: e.target.value })}
+                        >
+                          <option value="urban_search_rescue">Urban SAR (USAR)</option>
+                          <option value="flood_water">Flood &amp; Marine Rescue</option>
+                          <option value="medical_evac">Medical Evac &amp; Trauma</option>
+                          <option value="cyclone_storm">Cyclone &amp; Extreme Weather</option>
+                          <option value="general_sar">General SAR</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="input-group">
+                      <label className="input-label">Organization</label>
+                      <input
+                        type="text"
+                        className="minimal-input"
+                        placeholder="National Disaster Response Force (NDRF)"
+                        value={regForm.organization}
+                        onChange={(e) => setRegForm({ ...regForm, organization: e.target.value })}
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="input-group">
+                  <div className="label-row">
+                    <label className="input-label">Base Location</label>
+                    <button
+                      type="button"
+                      className="text-action-btn"
+                      onClick={handleDetectGPS}
+                    >
+                      <MapPin size={12} />
+                      <span>Detect GPS</span>
+                    </button>
+                  </div>
                   <input
                     type="text"
-                    className="form-input"
-                    placeholder="Base / Station Address"
+                    className="minimal-input"
+                    placeholder="Command Post Address or Coordinates"
                     value={regForm.address}
                     onChange={(e) => setRegForm({ ...regForm, address: e.target.value })}
                   />
                 </div>
-              </div>
 
-              <button type="submit" className="auth-submit-btn primary col-span-2" disabled={loading}>
-                {loading ? <span className="rescue-spinner"></span> : <UserPlus size={16} />}
-                <span>Create Registered Profile &amp; Launch Station</span>
-              </button>
-            </form>
-          </div>
-        )}
+                <button
+                  type="submit"
+                  className="btn-primary-white"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <span className="minimal-spinner"></span>
+                  ) : (
+                    <span>Create Profile</span>
+                  )}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
