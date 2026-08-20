@@ -672,12 +672,13 @@
 
 .disaster-card {
   width: 100%;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
+  height: 400px;
+  background: #111111;
+  border: 1px solid #1c1c1e;
+  border-radius: 12px;
+  padding: 15px ;
   cursor: pointer;
-  transition: all 0.25s var(--ease-out-expo);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -688,7 +689,7 @@
 @keyframes cardFadeIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -698,33 +699,29 @@
 
 .disaster-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(56, 189, 248, 0.4);
-  background: var(--surface-card-hover);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border-color: #2c2c2e;
 }
 
 .disaster-card.selected {
-  border-color: #38bdf8;
-  background: rgba(2, 132, 199, 0.12);
-  box-shadow: 0 0 24px rgba(56, 189, 248, 0.2), inset 0 1px 0 rgba(56, 189, 248, 0.1);
+  border-color: #ffffff !important;
+  background: #161616;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 .disaster-card.sev-critical {
-  border-left: 4px solid #ef4444;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, rgba(30, 41, 59, 0.45) 30%);
+  border-left: 3px solid #ef4444;
 }
 
 .disaster-card.sev-high {
-  border-left: 4px solid #f97316;
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.04) 0%, rgba(30, 41, 59, 0.45) 30%);
+  border-left: 3px solid #f97316;
 }
 
 .disaster-card.sev-medium {
-  border-left: 4px solid #eab308;
+  border-left: 3px solid #eab308;
 }
 
 .disaster-card.sev-low {
-  border-left: 4px solid #10b981;
+  border-left: 3px solid #22c55e;
 }
 
 .disaster-card-header {
@@ -3789,7 +3786,8 @@
   max-height: calc(100vh - 80px);
   bottom: 40px;
   right: 40px;
-}/* Gemini Gradients & Badges - Minimalist Monochrome */
+}
+/* Gemini Gradients & Badges - Minimalist Monochrome */
 .gemini-gradient {
   background: #ffffff !important;
   color: #000000 !important;

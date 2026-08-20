@@ -10,6 +10,7 @@ import {
   Navigation,
 } from 'lucide-react';
 import { calculateDistanceKm, formatDistance } from '../utils/geoUtils';
+import SpotlightCard from './SpotlightCard';
 
 const typeIcons = {
   earthquake: '🔴',
@@ -166,9 +167,16 @@ export const DisasterSidebar = ({
                       : null;
 
                   return (
-                    <div
+                    <SpotlightCard
                       key={item.id}
                       onClick={() => onSelectDisaster(item)}
+                      spotlightColor={
+                        item.severity === 'critical'
+                          ? 'rgba(239, 68, 68, 0.22)'
+                          : item.severity === 'high'
+                          ? 'rgba(249, 115, 22, 0.22)'
+                          : 'rgba(255, 255, 255, 0.18)'
+                      }
                       className={`disaster-card sev-${item.severity || 'medium'} ${
                         isSel ? 'selected' : ''
                       }`}
@@ -280,7 +288,7 @@ export const DisasterSidebar = ({
                           )}
                         </div>
                       </div>
-                    </div>
+                    </SpotlightCard>
                   );
                 })
               )}
