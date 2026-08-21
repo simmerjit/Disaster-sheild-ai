@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   CloudSun,
   Navigation,
+  GraduationCap,
 } from 'lucide-react';
 import { getGoogleMapsDirectionsUrl } from '../utils/geoUtils';
 
@@ -38,6 +39,7 @@ export const DisasterPopup = ({
   onOpenNavigation,
   onOpenFacilities,
   onOpenDetails,
+  onOpenSurvivalAcademy,
 }) => {
   if (!disaster) return null;
 
@@ -102,91 +104,74 @@ export const DisasterPopup = ({
         </div>
       </div>
 
-      {/* Title */}
+      {/* Main Title & Description */}
       <h3 className="popup-title">{title}</h3>
-
-      {/* SACHET Official Alert Tag */}
-      {isSachet && (
-        <div className="sachet-official-tag">
-          <span>Official NDMA SACHET Alert</span>
-          {sender && <small> &bull; {sender}</small>}
-        </div>
-      )}
-
-      {/* Description */}
       {description && <p className="popup-description">{description}</p>}
 
-      {/* Emergency Instruction (SACHET CAP) */}
-      {instruction && (
-        <div className="popup-instruction-box">
-          <strong>⚠️ Official Instruction:</strong> {instruction}
+      {/* SACHET Actionable Emergency Advisory Callout */}
+      {isSachet && instruction && (
+        <div className="sachet-instruction-box">
+          <span className="instruction-icon">⚠️</span>
+          <p className="instruction-text">
+            <strong>Advisory:</strong> {instruction}
+          </p>
         </div>
       )}
 
-      {/* Key Details Grid */}
-      <div className="popup-details-grid">
-        {/* Location / Affected Area */}
-        <div className="popup-detail-item">
-          <MapPin size={14} className="popup-icon" />
-          <span>
-            <strong>{isSachet ? 'Affected Area:' : 'Location:'}</strong> {location || country || 'India'}
+      {/* Telemetry Metrics Grid */}
+      <div className="popup-metrics-grid">
+        <div className="metric-cell">
+          <MapPin size={13} className="metric-icon" />
+          <span className="metric-val">{location || country || 'Global Coordinates'}</span>
+        </div>
+        <div className="metric-cell">
+          <Activity size={13} className="metric-icon" />
+          <span className="metric-val">
+            {Number(latitude).toFixed(3)}°, {Number(longitude).toFixed(3)}°
           </span>
         </div>
-
-        {/* Coordinates */}
-        <div className="popup-detail-item">
-          <Activity size={14} className="popup-icon" />
-          <span>
-            <strong>Coords:</strong> {latitude?.toFixed(4)}, {longitude?.toFixed(4)}
-          </span>
+        <div className="metric-cell">
+          <Calendar size={13} className="metric-icon" />
+          <span className="metric-val">{formattedDate}</span>
         </div>
-
-        {/* Magnitude & Depth */}
-        {magnitude !== null && magnitude !== undefined && (
-          <div className="popup-detail-item">
-            <AlertTriangle size={14} className="popup-icon" />
-            <span>
-              <strong>Magnitude:</strong> {magnitude} {depth ? `(Depth: ${depth} km)` : ''}
-            </span>
+        <div className="metric-cell">
+          <Layers size={13} className="metric-icon" />
+          <span className="metric-val">Radius: ~{radiusKm} km</span>
+        </div>
+        {magnitude != null && (
+          <div className="metric-cell highlight">
+            <span className="metric-label">Magnitude:</span>
+            <span className="metric-val font-bold">M {magnitude}</span>
           </div>
         )}
-
-        {/* Affected Radius */}
-        <div className="popup-detail-item">
-          <Layers size={14} className="popup-icon" />
-          <span>
-            <strong>Impact Radius:</strong> ~{radiusKm} km ({radiusMeters.toLocaleString()} m)
-          </span>
-        </div>
-
-        {/* Date & Time */}
-        <div className="popup-detail-item">
-          <Calendar size={14} className="popup-icon" />
-          <span>
-            <strong>Effective:</strong> {effective ? new Date(effective).toLocaleString() : formattedDate}
-          </span>
-        </div>
-
-        {/* Expiry if available */}
-        {expires && (
-          <div className="popup-detail-item">
-            <Calendar size={14} className="popup-icon" />
-            <span>
-              <strong>Expires:</strong> {new Date(expires).toLocaleString()}
-            </span>
+        {depth != null && (
+          <div className="metric-cell">
+            <span className="metric-label">Depth:</span>
+            <span className="metric-val">{depth} km</span>
           </div>
         )}
       </div>
 
-      {/* Action Buttons: Weather, Navigation, Nearby Facilities, Incident Details */}
-      <div className="popup-quick-actions">
+      {/* Action Buttons */}
+      <div className="popup-actions-row">
         {onOpenDetails && (
           <button
             onClick={() => onOpenDetails(disaster)}
-            className="popup-action-btn details-action"
-            title="Open Full Incident Details & Impact Panel"
+            className="popup-action-btn primary-action"
+            title="Open comprehensive verified incident details modal"
           >
-            <span>📑 Details & Relief</span>
+            <span>Full Intel</span>
+          </button>
+        )}
+
+        {onOpenSurvivalAcademy && (
+          <button
+            onClick={() => onOpenSurvivalAcademy(type)}
+            className="popup-action-btn survival-action"
+            title="Learn how to survive this disaster"
+          >
+            <GraduationCap size={13} />
+            <span>Survive</span>
           </button>
         )}
 
@@ -196,7 +181,7 @@ export const DisasterPopup = ({
               onOpenWeather({
                 latitude: Number(latitude),
                 longitude: Number(longitude),
-                name: title || `${type} Event`,
+                name: location || title,
                 type,
               });
             }

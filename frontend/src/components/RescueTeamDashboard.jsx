@@ -82,6 +82,7 @@ export const RescueTeamDashboard = ({
   const [maxRadius, setMaxRadius] = useState(5000); // in km
   const [selectedMission, setSelectedMission] = useState(null);
   const [expandedCardId, setExpandedCardId] = useState(null);
+  const [mobileTab, setMobileTab] = useState('queue'); // 'queue' | 'map'
 
   // Map state
   const mapRef = useRef(null);
@@ -284,10 +285,13 @@ export const RescueTeamDashboard = ({
   };
 
   // Focus mission on map
-  const handleFocusMission = (m) => {
+  const handleFocusMission = (m, switchTab = false) => {
     setSelectedMission(m);
     setMapCenter({ lat: m.latitude, lng: m.longitude });
     setMapZoom(9);
+    if (switchTab) {
+      setMobileTab('map');
+    }
   };
 
   // Client-side filtering of missions
@@ -488,8 +492,30 @@ export const RescueTeamDashboard = ({
         )}
       </div>
 
+      {/* ── MOBILE VIEW SWITCHER (Visible on tablet/mobile screens) ── */}
+      <div className="rescue-mobile-switcher-bar" role="tablist" aria-label="Rescue View Switcher">
+        <button
+          role="tab"
+          aria-selected={mobileTab === 'queue'}
+          className={`rescue-mobile-tab ${mobileTab === 'queue' ? 'active' : ''}`}
+          onClick={() => setMobileTab('queue')}
+        >
+          <Radio size={14} />
+          <span>Priority Queue ({filteredMissions.length})</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={mobileTab === 'map'}
+          className={`rescue-mobile-tab ${mobileTab === 'map' ? 'active' : ''}`}
+          onClick={() => setMobileTab('map')}
+        >
+          <Compass size={14} />
+          <span>Tactical Map</span>
+        </button>
+      </div>
+
       {/* ── MAIN WORKSPACE: SPLIT SCREEN (PRIORITY LIST + TACTICAL MAP) ── */}
-      <div className="rescue-main-split">
+      <div className={`rescue-main-split mobile-show-${mobileTab}`}>
         {/* LEFT COLUMN: LOCATION-BASED RESCUE PRIORITY QUEUE */}
         <div className="priority-queue-pane">
           {/* Controls & Filter Tabs */}
