@@ -23,6 +23,7 @@ import {
   Layers,
   ChevronRight,
   HelpCircle,
+  GraduationCap,
 } from 'lucide-react';
 import { fetchFullIncidentDetails } from '../services/incidentApi';
 import { formatDistance, getGoogleMapsDirectionsUrl } from '../utils/geoUtils';
@@ -53,6 +54,7 @@ export const DisasterDetailsModal = ({
   userCoords,
   onOpenFacilities,
   onOpenWeather,
+  onOpenSurvivalAcademy,
 }) => {
   const [activeTab, setActiveTab] = useState('impact'); // 'impact' | 'updates' | 'rescue' | 'shelters' | 'relief'
   const [loading, setLoading] = useState(true);
@@ -170,6 +172,19 @@ export const DisasterDetailsModal = ({
                   <Layers size={13} className="meta-icon" />
                   <span>Impact Radius: ~{affectedRadius} km</span>
                 </div>
+              )}
+              {onOpenSurvivalAcademy && (
+                <button
+                  onClick={() => {
+                    onOpenSurvivalAcademy(type);
+                    onClose();
+                  }}
+                  className="btn-modal-survival-link"
+                  title={`Learn life-saving protocols for ${type} events`}
+                >
+                  <GraduationCap size={13} />
+                  <span>Learn How To Survive</span>
+                </button>
               )}
             </div>
           </div>

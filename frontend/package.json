@@ -12,10 +12,14 @@
   "dependencies": {
     "@clerk/clerk-react": "^5.61.9",
     "@react-google-maps/api": "^2.20.8",
+    "@tanstack/react-query": "^5.101.4",
     "axios": "^1.19.0",
+    "framer-motion": "^13.1.1",
     "lucide-react": "^1.31.0",
+    "ogl": "^1.0.11",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-window": "^2.3.0"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

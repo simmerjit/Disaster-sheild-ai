@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import {
-  getAllShelters,
+  getShelters,
+  getRecommendedShelter,
+  getShelterStats,
   getNearbyShelters,
   getShelterById,
   createShelter,
@@ -10,19 +12,29 @@ import {
 
 const router = Router();
 
-// GET    /api/shelters/nearby (MUST be before /:id)
+// ── GET Endpoints ─────────────────────────────────────────────────────────────
+
+// GET /api/shelters/recommended (MUST be before /:id)
+router.get('/recommended', getRecommendedShelter);
+
+// GET /api/shelters/stats (MUST be before /:id)
+router.get('/stats', getShelterStats);
+
+// GET /api/shelters/nearby (MUST be before /:id, backward compatibility)
 router.get('/nearby', getNearbyShelters);
 
-// GET    /api/shelters
-router.get('/', getAllShelters);
+// GET /api/shelters (Fetch nearby / all shelters)
+router.get('/', getShelters);
 
-// GET    /api/shelters/:id
+// GET /api/shelters/:id (Single shelter details)
 router.get('/:id', getShelterById);
 
-// POST   /api/shelters
+// ── Mutation Endpoints (Admin / Testing) ───────────────────────────────────────
+
+// POST /api/shelters
 router.post('/', createShelter);
 
-// PUT    /api/shelters/:id
+// PUT /api/shelters/:id
 router.put('/:id', updateShelter);
 
 // DELETE /api/shelters/:id

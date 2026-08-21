@@ -15,6 +15,7 @@ import sosRoutes from './routes/sos.routes.js';
 import rescueRoutes from './routes/rescue.routes.js';
 import reportRoutes from './routes/report.routes.js';
 import chatRoutes from './routes/chat.routes.js';
+import survivalRoutes from './modules/survival/survival.routes.js';
 
 // Middleware imports
 import { errorHandler } from './middleware/error.middleware.js';
@@ -47,6 +48,7 @@ app.use('/api/sos', sosRoutes);
 app.use('/api/rescue', rescueRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/survival', survivalRoutes);
 
 // ── Production Health & Telemetry Check ──────────────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -82,6 +84,7 @@ app.get('/', (req, res) => {
       nearbyPlaces: '/api/places/nearby',
       shelters: '/api/shelters',
       nearbyShelters: '/api/shelters/nearby',
+      survivalAcademy: '/api/survival',
       rescueOperations: '/api/rescue-operations',
       reliefOrganizations: '/api/relief-organizations',
       chatAssistant: '/api/chat/message',

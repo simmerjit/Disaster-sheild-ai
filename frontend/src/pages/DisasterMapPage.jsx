@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { fetchAllDisasters } from '../services/disasterApi';
+import { fetchShelters, fetchRecommendedShelter, fetchShelterStats } from '../services/shelterApi';
 import DisasterMap from '../components/DisasterMap';
 import DisasterSidebar from '../components/DisasterSidebar';
 import DisasterFilters from '../components/DisasterFilters';
 import DisasterDetailsModal from '../components/DisasterDetailsModal';
+import ShelterSidebar from '../components/ShelterSidebar';
+import ShelterDetailsModal from '../components/ShelterDetailsModal';
 import DisasterChatbot from '../components/DisasterChatbot';
 import RescueLoginModal from '../components/RescueLoginModal';
 import {
@@ -20,6 +23,10 @@ import {
   LogOut,
   User,
   Shield,
+  Map as MapIcon,
+  ListFilter,
+  Home,
+  GraduationCap,
 } from 'lucide-react';
 
 const initialFilters = {
@@ -30,7 +37,13 @@ const initialFilters = {
   search: '',
 };
 
-export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueCommand }) => {
+export const DisasterMapPage = ({
+  user,
+  rescueTeam,
+  onLogout,
+  onOpenRescueCommand,
+  onOpenSurvivalAcademy,
+}) => {
   const [disasters, setDisasters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -39,6 +52,19 @@ export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueComman
   const [filters, setFilters] = useState(initialFilters);
   const [selectedDisaster, setSelectedDisaster] = useState(null);
   const [userCoords, setUserCoords] = useState(null);
+
+  // ── Emergency Shelter State ──────────────────────────────────────────
+  const [shelters, setShelters] = useState([]);
+  const [recommendedShelter, setRecommendedShelter] = useState(null);
+  const [shelterStats, setShelterStats] = useState(null);
+  const [sheltersLoading, setSheltersLoading] = useState(false);
+  const [selectedShelter, setSelectedShelter] = useState(null);
+  const [detailShelter, setDetailShelter] = useState(null);
+  const [showSheltersPanel, setShowSheltersPanel] = useState(false);
+  const [activeNavigationRoute, setActiveNavigationRoute] = useState(null);
+
+  // Mobile navigation view state ('map' | 'feed')
+  const [mobileView, setMobileView] = useState('map');
 
   // Weather, Navigation & Nearby Facilities HUD controls
   const [weatherTarget, setWeatherTarget] = useState(null);
@@ -56,6 +82,126 @@ export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueComman
   // Rescue Login Modal state
   const [showRescueLoginModal, setShowRescueLoginModal] = useState(false);
 
+  // Load emergency shelters, recommendation, and stats from Express backend
+  const loadShelters = useCallback(async (customParams = null) => {
+    setSheltersLoading(true);
+    try {
+      let lat = null;
+      let lng = null;
+      let dType = 'general';
+      let disasterLat = null;
+      let disasterLng = null;
+
+      if (customParams && customParams.latitude != null && customParams.longitude != null) {
+        lat = Number(customParams.latitude);
+        lng = Number(customParams.longitude);
+        dType = customParams.type || 'general';
+        disasterLat = customParams.disasterLat || lat;
+        disasterLng = customParams.disasterLng || lng;
+      } else if (selectedDisaster && selectedDisaster.latitude != null && selectedDisaster.longitude != null) {
+        lat = Number(selectedDisaster.latitude);
+        lng = Number(selectedDisaster.longitude);
+        dType = selectedDisaster.type || 'general';
+        disasterLat = lat;
+        disasterLng = lng;
+      } else if (userCoords && userCoords.latitude != null && userCoords.longitude != null) {
+        lat = Number(userCoords.latitude);
+        lng = Number(userCoords.longitude);
+      }
+
+      if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) {
+        return;
+      }
+
+      // 1. Fetch nearby shelters for targeted location & disaster type
+      const shelterRes = await fetchShelters({ lat, lng, radius: 35000, disasterType: dType });
+      if (shelterRes && shelterRes.data) {
+        setShelters(shelterRes.data);
+      }
+
+      // 2. Fetch dashboard stats
+      try {
+        const statsRes = await fetchShelterStats();
+        if (statsRes && statsRes.data) {
+          setShelterStats(statsRes.data);
+        }
+      } catch (statErr) {
+        console.warn('Shelter stats error:', statErr);
+      }
+
+      // 3. Fetch AI recommendation tailored to disaster
+      try {
+        const recRes = await fetchRecommendedShelter({
+          lat,
+          lng,
+          disasterLat,
+          disasterLng,
+          radius: 35000,
+          disasterType: dType,
+        });
+
+        if (recRes && recRes.data?.recommendedShelter) {
+          setRecommendedShelter({
+            ...recRes.data.recommendedShelter,
+            confidence: recRes.data.confidence,
+            reason: recRes.data.reason,
+          });
+        }
+      } catch (recErr) {
+        console.warn('Shelter recommendation error:', recErr);
+      }
+    } catch (err) {
+      console.error('Failed to load emergency shelters:', err);
+    } finally {
+      setSheltersLoading(false);
+    }
+  }, [userCoords, selectedDisaster]);
+
+  // Handle map idle / pan / zoom updates (detects visible disasters & updates shelters without moving map)
+  const handleViewportChange = useCallback(
+    ({ center, visibleDisasters }) => {
+      if (selectedDisaster) {
+        return; // Keep user's explicitly selected disaster shelter focus
+      }
+
+      if (visibleDisasters && visibleDisasters.length > 0) {
+        const target = visibleDisasters[0];
+        loadShelters({
+          latitude: Number(target.latitude),
+          longitude: Number(target.longitude),
+          type: target.type,
+          disasterLat: Number(target.latitude),
+          disasterLng: Number(target.longitude),
+        });
+      } else if (center && center.latitude != null && center.longitude != null) {
+        loadShelters({
+          latitude: center.latitude,
+          longitude: center.longitude,
+          type: 'general',
+        });
+      }
+    },
+    [selectedDisaster, loadShelters]
+  );
+
+  // Handle selecting a disaster (focuses disaster and instantly fetches local shelters)
+  const handleSelectDisaster = useCallback(
+    (item) => {
+      setSelectedDisaster(item);
+      setMobileView('map');
+      if (item && item.latitude != null && item.longitude != null) {
+        loadShelters({
+          latitude: Number(item.latitude),
+          longitude: Number(item.longitude),
+          type: item.type,
+          disasterLat: Number(item.latitude),
+          disasterLng: Number(item.longitude),
+        });
+      }
+    },
+    [loadShelters]
+  );
+
   // Load disasters from Express backend
   const loadDisasters = useCallback(async () => {
     setLoading(true);
@@ -65,6 +211,16 @@ export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueComman
       if (response && response.data) {
         setDisasters(response.data);
         setLastUpdated(new Date());
+        if (response.data.length > 0 && !selectedDisaster) {
+          const firstDisaster = response.data[0];
+          loadShelters({
+            latitude: Number(firstDisaster.latitude),
+            longitude: Number(firstDisaster.longitude),
+            type: firstDisaster.type,
+            disasterLat: Number(firstDisaster.latitude),
+            disasterLng: Number(firstDisaster.longitude),
+          });
+        }
       } else {
         throw new Error('Invalid response format from server');
       }
@@ -78,7 +234,7 @@ export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueComman
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedDisaster, loadShelters]);
 
   useEffect(() => {
     loadDisasters();
@@ -184,8 +340,32 @@ export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueComman
             </span>
             <span className="live-pulse-dot red"></span>
           </button>
+          {/* Survival Academy Launcher */}
+          <button
+            onClick={() => {
+              if (onOpenSurvivalAcademy) {
+                onOpenSurvivalAcademy(selectedDisaster?.type || null);
+              } else {
+                window.location.href = '/survive';
+              }
+            }}
+            className="nav-header-btn survival-academy-btn"
+            title="Open Disaster Survival Academy & Life-Saving Tutorials (/survive)"
+          >
+            <GraduationCap size={16} className="text-amber-400" />
+            <span>Survival Academy</span>
+            <span className="live-pulse-dot gold"></span>
+          </button>
 
-          <div className="nav-divider" aria-hidden="true"></div>
+          <button
+            onClick={() => setShowSheltersPanel(!showSheltersPanel)}
+            className={`nav-header-btn shelter-header-btn ${showSheltersPanel ? 'active' : ''}`}
+            title="View Emergency Shelters, Capacity & Intake Registry"
+          >
+            <span>🏕️</span>
+            <span>Shelters</span>
+            {shelters.length > 0 && <span className="nav-counter-pill">{shelters.length}</span>}
+          </button>
 
           <button
             onClick={() => {
@@ -318,28 +498,80 @@ export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueComman
         totalResults={filteredDisasters.length}
       />
 
+      {/* Mobile Screen View Switcher Bar (Visible on mobile screens) */}
+      <div className="mobile-view-switcher" role="tablist">
+        <button
+          role="tab"
+          aria-selected={mobileView === 'map'}
+          className={`mobile-view-tab ${mobileView === 'map' ? 'active' : ''}`}
+          onClick={() => setMobileView('map')}
+        >
+          <MapIcon size={15} />
+          <span>Tactical Map</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={mobileView === 'feed'}
+          className={`mobile-view-tab ${mobileView === 'feed' ? 'active' : ''}`}
+          onClick={() => setMobileView('feed')}
+        >
+          <ListFilter size={15} />
+          <span>Live Feed ({filteredDisasters.length})</span>
+        </button>
+      </div>
+
       {/* Main Map + Sidebar Work Area */}
-      <main className="app-main-layout">
+      <main className={`app-main-layout mobile-show-${mobileView}`}>
         {/* Disaster Event List & Statistics Sidebar */}
         <DisasterSidebar
           disasters={disasters}
           filteredDisasters={filteredDisasters}
           selectedDisaster={selectedDisaster}
-          onSelectDisaster={setSelectedDisaster}
+          onSelectDisaster={handleSelectDisaster}
           onRefresh={loadDisasters}
           loading={loading}
           lastUpdated={lastUpdated}
           userCoords={userCoords}
-          onInspectWeather={handleInspectWeather}
-          onInspectNavigation={handleInspectNavigation}
+          onInspectWeather={(target) => {
+            handleInspectWeather(target);
+            setMobileView('map');
+          }}
+          onInspectNavigation={(item) => {
+            handleInspectNavigation(item);
+            setMobileView('map');
+          }}
           onInspectFacilities={(origin) => {
             setFacilitiesOrigin(origin);
             setShowFacilitiesPanel(true);
+            setMobileView('map');
           }}
           onInspectDetails={(item) => {
             setDetailDisaster(item);
           }}
         />
+
+        {/* Emergency Shelters Collapsible Drawer / Sidebar */}
+        {showSheltersPanel && (
+          <ShelterSidebar
+            shelters={shelters}
+            recommendedShelter={recommendedShelter}
+            selectedShelter={selectedShelter}
+            onSelectShelter={(s) => {
+              setSelectedShelter(s);
+              setMobileView('map');
+            }}
+            onNavigate={(s) => {
+              setActiveNavigationRoute(s);
+              setMobileView('map');
+            }}
+            onOpenDetails={(s) => setDetailShelter(s)}
+            stats={shelterStats}
+            loading={sheltersLoading}
+            onRefresh={() => loadShelters()}
+            userCoords={userCoords}
+            onClose={() => setShowSheltersPanel(false)}
+          />
+        )}
 
         {/* Google Maps Container */}
         <div className="map-view-pane">
@@ -355,7 +587,8 @@ export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueComman
           <DisasterMap
             disasters={filteredDisasters}
             selectedDisaster={selectedDisaster}
-            onSelectDisaster={setSelectedDisaster}
+            onSelectDisaster={handleSelectDisaster}
+            onViewportChange={handleViewportChange}
             userCoords={userCoords}
             onLocationFound={setUserCoords}
             weatherTarget={weatherTarget}
@@ -371,6 +604,16 @@ export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueComman
             onOpenDetails={(item) => {
               setDetailDisaster(item);
             }}
+            onOpenSurvivalAcademy={onOpenSurvivalAcademy}
+            shelters={shelters}
+            recommendedShelter={recommendedShelter}
+            selectedShelter={selectedShelter}
+            onSelectShelter={setSelectedShelter}
+            onOpenShelterDetails={(s) => setDetailShelter(s)}
+            showSheltersPanel={showSheltersPanel}
+            onToggleSheltersPanel={setShowSheltersPanel}
+            activeNavigationRoute={activeNavigationRoute}
+            onClearNavigationRoute={() => setActiveNavigationRoute(null)}
           />
         </div>
       </main>
@@ -388,6 +631,28 @@ export const DisasterMapPage = ({ user, rescueTeam, onLogout, onOpenRescueComman
           onOpenWeather={(target) => {
             setWeatherTarget(target);
           }}
+          onOpenSurvivalAcademy={onOpenSurvivalAcademy}
+        />
+      )}
+
+      {/* Dedicated Emergency Shelter Details Modal */}
+      {detailShelter && (
+        <ShelterDetailsModal
+          shelter={detailShelter}
+          isRecommended={
+            detailShelter.recommended ||
+            (recommendedShelter &&
+              (recommendedShelter._id === detailShelter._id ||
+                (recommendedShelter.name === detailShelter.name &&
+                  Math.abs(recommendedShelter.latitude - detailShelter.latitude) < 0.001)))
+          }
+          onClose={() => setDetailShelter(null)}
+          onNavigate={(s) => {
+            setActiveNavigationRoute(s);
+            setDetailShelter(null);
+            setMobileView('map');
+          }}
+          userCoords={userCoords}
         />
       )}
 

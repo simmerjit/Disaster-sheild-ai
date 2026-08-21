@@ -3,6 +3,7 @@ import { useAuthContext } from './context/AuthContext';
 import AuthPortal from './components/AuthPortal';
 import DisasterMapPage from './pages/DisasterMapPage';
 import RescueTeamDashboard from './components/RescueTeamDashboard';
+import SurvivalAcademyPage from './pages/SurvivalAcademyPage';
 import './App.css';
 
 function App() {
@@ -15,24 +16,78 @@ function App() {
     updateRescueTeamProfile,
   } = useAuthContext();
 
-  // activeView is the ONLY source of truth for which screen is shown
-  // It starts based on role but can be freely switched by the user
-  const [activeView, setActiveView] = useState('auth'); // 'auth' | 'rescue_command' | 'public_map'
+  // activeView is the source of truth for which screen is shown:
+  // 'auth' | 'rescue_command' | 'public_map' | 'survival_academy'
+  const [activeView, setActiveView] = useState(() => {
+    if (window.location.pathname === '/survive') {
+      return 'survival_academy';
+    }
+    return 'auth';
+  });
+
+  const [survivalDisasterFilter, setSurvivalDisasterFilter] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('disaster') || null;
+  });
+
+  // Handle URL route sync & browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      if (window.location.pathname === '/survive') {
+        const params = new URLSearchParams(window.location.search);
+        setSurvivalDisasterFilter(params.get('disaster') || null);
+        setActiveView('survival_academy');
+      } else if (isAuthenticated) {
+        setActiveView('public_map');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAuthenticated]);
 
   // When auth state changes, update the default view
   useEffect(() => {
     if (!isAuthenticated) {
-      setActiveView('auth');
+      if (window.location.pathname !== '/survive') {
+        setActiveView('auth');
+      }
     } else if (activeView === 'auth') {
-      // First time becoming authenticated - pick default view based on role
-      setActiveView(isRescueWorker ? 'rescue_command' : 'public_map');
+      if (window.location.pathname === '/survive') {
+        setActiveView('survival_academy');
+      } else {
+        setActiveView(isRescueWorker ? 'rescue_command' : 'public_map');
+      }
     }
-  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, isRescueWorker, activeView]);
 
   const handleLogout = () => {
     logout();
     setActiveView('auth');
   };
+
+  const handleOpenSurvivalAcademy = (disasterType = null) => {
+    setSurvivalDisasterFilter(disasterType);
+    setActiveView('survival_academy');
+    const newUrl = disasterType ? `/survive?disaster=${encodeURIComponent(disasterType)}` : '/survive';
+    window.history.pushState({}, '', newUrl);
+  };
+
+  const handleBackToPublicMap = () => {
+    setActiveView('public_map');
+    window.history.pushState({}, '', '/');
+  };
+
+  // ── Survival Academy View (Accessible publicly or authenticated via /survive)
+  if (activeView === 'survival_academy') {
+    return (
+      <SurvivalAcademyPage
+        user={currentUser}
+        initialDisasterType={survivalDisasterFilter}
+        onBackToMap={handleBackToPublicMap}
+      />
+    );
+  }
 
   // ── Not logged in → Auth Portal (Login First)
   if (!isAuthenticated || activeView === 'auth') {
@@ -70,7 +125,7 @@ function App() {
         user={currentUser}
         onUpdateTeam={updateRescueTeamProfile}
         onLogout={handleLogout}
-        onSwitchToPublicMap={() => setActiveView('public_map')}
+        onSwitchToPublicMap={handleBackToPublicMap}
       />
     );
   }
@@ -82,6 +137,7 @@ function App() {
       rescueTeam={rescueTeam}
       onLogout={handleLogout}
       onOpenRescueCommand={isRescueWorker ? () => setActiveView('rescue_command') : null}
+      onOpenSurvivalAcademy={handleOpenSurvivalAcademy}
     />
   );
 }
