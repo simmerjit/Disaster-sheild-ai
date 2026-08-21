@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Shelter from '../models/shelter.model.js';
 import { fetchSheltersFromOverpass } from '../services/shelter.service.js';
 import { recommendShelter } from '../utils/shelterRecommendation.js';
@@ -8,6 +9,8 @@ import {
 } from '../utils/shelterCache.js';
 import AppError from '../utils/AppError.js';
 import { wrapAsync } from '../utils/wrapAsync.js';
+
+const isDbReady = () => mongoose.connection.readyState === 1;
 
 /**
  * @desc    Get nearby emergency shelters (with caching & Overpass + Fallback discovery)
@@ -21,9 +24,19 @@ export const getShelters = wrapAsync(async (req, res, next) => {
   const radius = req.query.radius;
   const disasterType = req.query.disasterType || req.query.type || 'general';
 
-  // If no coordinates are provided, return all persisted shelters from database
+  // If no coordinates are provided, return all persisted shelters from database or fallback
   if (lat === undefined || lng === undefined || lat === '' || lng === '') {
-    const allShelters = await Shelter.find().sort({ updatedAt: -1 }).limit(100);
+    let allShelters = [];
+    if (isDbReady()) {
+      try {
+        allShelters = await Shelter.find().sort({ updatedAt: -1 }).limit(100);
+      } catch (e) {
+        allShelters = [];
+      }
+    }
+    if (!allShelters || allShelters.length === 0) {
+      allShelters = await fetchSheltersFromOverpass(28.6139, 77.209, 30000, 'general');
+    }
     return res.status(200).json({
       success: true,
       count: allShelters.length,
