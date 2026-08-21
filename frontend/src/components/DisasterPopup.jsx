@@ -3,21 +3,25 @@ import {
   ExternalLink,
   MapPin,
   Activity,
-  Calendar,
+  Clock,
   Layers,
   AlertTriangle,
   CloudSun,
   Navigation,
   GraduationCap,
+  Building2,
+  FileText,
+  Radio,
+  Sparkles,
 } from 'lucide-react';
 import { getGoogleMapsDirectionsUrl } from '../utils/geoUtils';
 
 const typeEmojis = {
   earthquake: '🔴',
-  cyclone: '🟠',
-  flood: '🔵',
+  cyclone: '🌀',
+  flood: '🌊',
   wildfire: '🔥',
-  volcano: '🟣',
+  volcano: '🌋',
   drought: '🌾',
   tsunami: '🌊',
   storm: '⛈️',
@@ -25,11 +29,11 @@ const typeEmojis = {
   other: '⚠️',
 };
 
-const severityColors = {
-  critical: '#ef4444',
-  high: '#f97316',
-  medium: '#eab308',
-  low: '#22c55e',
+const severityConfig = {
+  critical: { bg: 'rgba(239, 68, 68, 0.15)', text: '#fca5a5', border: 'rgba(239, 68, 68, 0.4)', dot: '#ef4444' },
+  high: { bg: 'rgba(249, 115, 22, 0.15)', text: '#fdba74', border: 'rgba(249, 115, 22, 0.4)', dot: '#f97316' },
+  medium: { bg: 'rgba(234, 179, 8, 0.15)', text: '#fde047', border: 'rgba(234, 179, 8, 0.4)', dot: '#eab308' },
+  low: { bg: 'rgba(34, 197, 94, 0.15)', text: '#86efac', border: 'rgba(34, 197, 94, 0.4)', dot: '#22c55e' },
 };
 
 export const DisasterPopup = ({
@@ -60,18 +64,23 @@ export const DisasterPopup = ({
     latitude,
     longitude,
     instruction,
-    effective,
-    expires,
-    sender,
   } = disaster;
 
   const isSachet = (source || '').toUpperCase() === 'SACHET';
   const emoji = typeEmojis[type.toLowerCase()] || '⚠️';
-  const sevColor = severityColors[severity.toLowerCase()] || '#eab308';
-  const formattedDate = timestamp ? new Date(timestamp).toLocaleString() : 'N/A';
-  const radiusKm = Number(affectedRadius || 15);
-  const radiusMeters = radiusKm * 1000;
+  const sevKey = (severity || 'medium').toLowerCase();
+  const sev = severityConfig[sevKey] || severityConfig.medium;
 
+  const formattedDate = timestamp
+    ? new Date(timestamp).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : 'Live Signal';
+
+  const radiusKm = Number(affectedRadius || 15);
   const userLat = userCoords ? Number(userCoords.latitude) : null;
   const userLng = userCoords ? Number(userCoords.longitude) : null;
   const directionsUrl = getGoogleMapsDirectionsUrl(
@@ -83,94 +92,133 @@ export const DisasterPopup = ({
 
   return (
     <div className="disaster-popup-content">
-      {/* Header */}
+      {/* 1. Header Badges */}
       <div className="popup-header">
         <div className="popup-type-badge">
           <span className="popup-emoji">{emoji}</span>
           <span className="popup-type-text">{type.toUpperCase()}</span>
         </div>
+
         <div className="popup-header-right">
           {isSachet && (
             <span className="sachet-badge">
-              ✓ SACHET / NDMA
+              ✓ NDMA
             </span>
           )}
           <span
             className="popup-severity-badge"
-            style={{ backgroundColor: `${sevColor}20`, color: sevColor, borderColor: sevColor }}
+            style={{
+              backgroundColor: sev.bg,
+              color: sev.text,
+              borderColor: sev.border,
+            }}
           >
+            <span className="severity-pulse-dot" style={{ backgroundColor: sev.dot }} />
             {severity.toUpperCase()}
           </span>
         </div>
       </div>
 
-      {/* Main Title & Description */}
+      {/* 2. Main Title */}
       <h3 className="popup-title">{title}</h3>
-      {description && <p className="popup-description">{description}</p>}
 
-      {/* SACHET Actionable Emergency Advisory Callout */}
-      {isSachet && instruction && (
-        <div className="sachet-instruction-box">
-          <span className="instruction-icon">⚠️</span>
-          <p className="instruction-text">
-            <strong>Advisory:</strong> {instruction}
-          </p>
+      {/* 3. Description (if available) */}
+      {description && (
+        <p className="popup-description">
+          {description}
+        </p>
+      )}
+
+      {/* 4. Actionable Advisory Banner */}
+      {instruction && (
+        <div className="popup-instruction-banner">
+          <AlertTriangle size={14} className="instruction-icon" />
+          <div className="instruction-content">
+            <span className="instruction-heading">Emergency Advisory</span>
+            <p className="instruction-text">{instruction}</p>
+          </div>
         </div>
       )}
 
-      {/* Telemetry Metrics Grid */}
+      {/* 5. Clean Telemetry Metrics Grid */}
       <div className="popup-metrics-grid">
-        <div className="metric-cell">
+        <div className="metric-cell" title={location || country || 'Global Coordinates'}>
           <MapPin size={13} className="metric-icon" />
-          <span className="metric-val">{location || country || 'Global Coordinates'}</span>
+          <div className="metric-info">
+            <span className="metric-label">Location</span>
+            <span className="metric-val">{location || country || 'Global Area'}</span>
+          </div>
         </div>
+
         <div className="metric-cell">
           <Activity size={13} className="metric-icon" />
-          <span className="metric-val">
-            {Number(latitude).toFixed(3)}°, {Number(longitude).toFixed(3)}°
-          </span>
+          <div className="metric-info">
+            <span className="metric-label">Coordinates</span>
+            <span className="metric-val font-mono">
+              {Number(latitude).toFixed(2)}°, {Number(longitude).toFixed(2)}°
+            </span>
+          </div>
         </div>
+
         <div className="metric-cell">
-          <Calendar size={13} className="metric-icon" />
-          <span className="metric-val">{formattedDate}</span>
+          <Clock size={13} className="metric-icon" />
+          <div className="metric-info">
+            <span className="metric-label">Reported</span>
+            <span className="metric-val">{formattedDate}</span>
+          </div>
         </div>
+
         <div className="metric-cell">
           <Layers size={13} className="metric-icon" />
-          <span className="metric-val">Radius: ~{radiusKm} km</span>
+          <div className="metric-info">
+            <span className="metric-label">Impact Zone</span>
+            <span className="metric-val">~{radiusKm} km radius</span>
+          </div>
         </div>
+
         {magnitude != null && (
-          <div className="metric-cell highlight">
-            <span className="metric-label">Magnitude:</span>
-            <span className="metric-val font-bold">M {magnitude}</span>
+          <div className="metric-cell metric-cell-highlight">
+            <Radio size={13} className="metric-icon highlight" />
+            <div className="metric-info">
+              <span className="metric-label">Magnitude</span>
+              <span className="metric-val font-bold">M {magnitude}</span>
+            </div>
           </div>
         )}
+
         {depth != null && (
           <div className="metric-cell">
-            <span className="metric-label">Depth:</span>
-            <span className="metric-val">{depth} km</span>
+            <span className="metric-icon text-muted">⬇</span>
+            <div className="metric-info">
+              <span className="metric-label">Depth</span>
+              <span className="metric-val">{depth} km</span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="popup-actions-row">
-        {onOpenDetails && (
-          <button
-            onClick={() => onOpenDetails(disaster)}
-            className="popup-action-btn primary-action"
-            title="Open comprehensive verified incident details modal"
-          >
-            <span>Full Intel</span>
-          </button>
-        )}
+      {/* 6. Primary Action: Full Intel */}
+      {onOpenDetails && (
+        <button
+          onClick={() => onOpenDetails(disaster)}
+          className="popup-btn-full-intel"
+          title="Open comprehensive verified incident details"
+        >
+          <FileText size={14} />
+          <span>Full Intel Report</span>
+          <Sparkles size={13} className="sparkle-icon" />
+        </button>
+      )}
 
+      {/* 7. Action Button Toolbar */}
+      <div className="popup-actions-grid">
         {onOpenSurvivalAcademy && (
           <button
             onClick={() => onOpenSurvivalAcademy(type)}
-            className="popup-action-btn survival-action"
+            className="popup-action-tile survival-tile"
             title="Learn how to survive this disaster"
           >
-            <GraduationCap size={13} />
+            <GraduationCap size={14} />
             <span>Survive</span>
           </button>
         )}
@@ -186,11 +234,11 @@ export const DisasterPopup = ({
               });
             }
           }}
-          className="popup-action-btn weather-action"
-          title="Check real-time meteorological weather at this location"
+          className="popup-action-tile weather-tile"
+          title="Check real-time meteorological weather"
         >
-          <CloudSun size={13} />
-          <span>Live Weather</span>
+          <CloudSun size={14} />
+          <span>Weather</span>
         </button>
 
         {onOpenFacilities && (
@@ -203,10 +251,11 @@ export const DisasterPopup = ({
                 type: 'disaster',
               });
             }}
-            className="popup-action-btn facilities-action"
-            title="Discover nearby emergency facilities via Google Places"
+            className="popup-action-tile facilities-tile"
+            title="Discover nearby emergency facilities"
           >
-            <span>🏥 Facilities</span>
+            <Building2 size={14} />
+            <span>Facilities</span>
           </button>
         )}
 
@@ -214,18 +263,19 @@ export const DisasterPopup = ({
           href={directionsUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="popup-action-btn nav-action"
+          className="popup-action-tile nav-tile"
           title="Open directions in Google Maps"
         >
-          <Navigation size={13} />
+          <Navigation size={14} />
           <span>Navigate</span>
         </a>
       </div>
 
-      {/* Footer Info */}
+      {/* 8. Footer Info */}
       <div className="popup-footer">
         <div className="popup-source-tag">
-          Source: <strong>{isSachet ? 'NDMA SACHET' : source || 'Backend API'}</strong>
+          <span className="source-label">Source:</span>
+          <strong>{isSachet ? 'NDMA SACHET' : source || 'DisasterShield'}</strong>
           {status && <span className={`status-pill status-${status}`}>{status}</span>}
         </div>
 
@@ -235,10 +285,10 @@ export const DisasterPopup = ({
             target="_blank"
             rel="noopener noreferrer"
             className="popup-link-btn"
-            title="View official alert / CAP XML"
+            title="View official agency report"
           >
-            <span>{isSachet ? 'Official CAP XML' : 'Official Report'}</span>
-            <ExternalLink size={13} />
+            <span>Official Report</span>
+            <ExternalLink size={12} />
           </a>
         )}
       </div>
