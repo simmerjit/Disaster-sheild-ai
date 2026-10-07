@@ -9,6 +9,7 @@ import ShelterSidebar from '../components/ShelterSidebar';
 import ShelterDetailsModal from '../components/ShelterDetailsModal';
 import DisasterChatbot from '../components/DisasterChatbot';
 import RescueLoginModal from '../components/RescueLoginModal';
+import IncidentReportModal from '../components/IncidentReportModal';
 import {
   AlertTriangle,
   RefreshCw,
@@ -16,16 +17,13 @@ import {
   Globe2,
   CloudSun,
   Route,
-  Navigation,
   Bot,
   Sparkles,
   Radio,
   LogOut,
-  User,
-  Shield,
   Map as MapIcon,
   ListFilter,
-  Home,
+  MapPin,
   GraduationCap,
 } from 'lucide-react';
 
@@ -75,6 +73,9 @@ export const DisasterMapPage = ({
 
   // AI Chatbot Assistant State
   const [showChatbot, setShowChatbot] = useState(false);
+
+  // Citizen reporting flow
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Disaster Details Modal state
   const [detailDisaster, setDetailDisaster] = useState(null);
@@ -435,6 +436,15 @@ export const DisasterMapPage = ({
           </button>
 
           <button
+            onClick={() => setShowReportModal(true)}
+            className="nav-header-btn report-incident-btn"
+            title="Submit a citizen incident report"
+          >
+            <MapPin size={15} />
+            <span>Report Incident</span>
+          </button>
+
+          <button
             onClick={() => setShowChatbot(!showChatbot)}
             className={`nav-header-btn ai-assistant-header-btn ${showChatbot ? 'active' : ''}`}
             title="Open DisasterShield AI Emergency Assistant"
@@ -656,6 +666,24 @@ export const DisasterMapPage = ({
         />
       )}
 
+      {/* Citizen Incident Report Modal */}
+      <IncidentReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        defaultLocation={
+          selectedDisaster
+            ? {
+                latitude: Number(selectedDisaster.latitude),
+                longitude: Number(selectedDisaster.longitude),
+                title: selectedDisaster.title,
+              }
+            : userCoords
+            ? { latitude: Number(userCoords.latitude), longitude: Number(userCoords.longitude), title: 'My location' }
+            : null
+        }
+        disaster={selectedDisaster}
+      />
+
       {/* Rescue Team Quick Switch Modal */}
       <RescueLoginModal
         isOpen={showRescueLoginModal}
@@ -683,7 +711,7 @@ export const DisasterMapPage = ({
         onClose={() => setShowChatbot(false)}
         userCoords={userCoords}
         selectedDisaster={selectedDisaster}
-        onOpenFacilities={(origin, facilityType) => {
+        onOpenFacilities={(origin) => {
           if (origin) setFacilitiesOrigin(origin);
           setShowFacilitiesPanel(true);
         }}

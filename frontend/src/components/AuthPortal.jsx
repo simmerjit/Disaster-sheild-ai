@@ -4,7 +4,6 @@ import {
   Lock,
   Mail,
   User,
-  Phone,
   Radio,
   MapPin,
   Eye,
@@ -59,7 +58,16 @@ const RESPONDER_PRESETS = [
 ];
 
 export const AuthPortal = ({ onLoginSuccess }) => {
-  const { login, registerOrSync } = useAuthContext();
+  const {
+    login,
+    registerOrSync,
+    continueAsGuest,
+    clerkEnabled,
+    demoAuthEnabled,
+    startSignIn,
+    startSignUp,
+    authError,
+  } = useAuthContext();
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -67,16 +75,15 @@ export const AuthPortal = ({ onLoginSuccess }) => {
 
   // Login form state
   const [loginEmailOrCode, setLoginEmailOrCode] = useState('');
-  const [loginPassword, setLoginPassword] = useState('rescue123');
+  const [loginPassword, setLoginPassword] = useState('');
 
   // Registration form state
-  const [regRole, setRegRole] = useState('rescue_worker');
+  const regRole = 'citizen';
   const [regForm, setRegForm] = useState({
     name: '',
     email: '',
-    password: 'secure123Password',
-    role: 'rescue_worker',
-    organization: 'National Disaster Response Force (NDRF)',
+    role: 'citizen',
+    organization: 'Public Safety Network',
     specialization: 'urban_search_rescue',
     teamCode: '',
     phoneNumber: '',
@@ -88,6 +95,14 @@ export const AuthPortal = ({ onLoginSuccess }) => {
   // Handle Login Submit
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
+    if (clerkEnabled) {
+      startSignIn();
+      return;
+    }
+    if (!demoAuthEnabled) {
+      setError('Sign-in is not configured. Set up Clerk authentication or enable local demo mode.');
+      return;
+    }
     if (!loginEmailOrCode.trim()) {
       setError('Please enter your email or unit identifier.');
       return;
@@ -109,6 +124,7 @@ export const AuthPortal = ({ onLoginSuccess }) => {
 
   // Handle Quick Responder Preset Login
   const handlePresetLogin = async (preset) => {
+    if (!demoAuthEnabled || clerkEnabled) return;
     setLoading(true);
     setError(null);
     try {
@@ -116,7 +132,7 @@ export const AuthPortal = ({ onLoginSuccess }) => {
       if (data?.success) {
         if (onLoginSuccess) onLoginSuccess(data.user, data.rescueTeam);
       }
-    } catch (err) {
+    } catch {
       try {
         const regData = await registerOrSync({
           name: preset.teamName,
@@ -140,29 +156,22 @@ export const AuthPortal = ({ onLoginSuccess }) => {
 
   // Quick Guest / Citizen Access
   const handleGuestLogin = async () => {
-    setLoading(true);
     setError(null);
-    try {
-      const data = await registerOrSync({
-        name: 'Guest Observer',
-        email: `guest_${Date.now()}@disastershield.org`,
-        role: 'citizen',
-        organization: 'Public Network',
-        location: { latitude: 28.6139, longitude: 77.209, address: 'New Delhi, India' },
-      });
-      if (data?.success) {
-        if (onLoginSuccess) onLoginSuccess(data.user, null);
-      }
-    } catch (err) {
-      setError(err.message || 'Failed to start guest session.');
-    } finally {
-      setLoading(false);
-    }
+    const data = continueAsGuest();
+    if (data?.success && onLoginSuccess) onLoginSuccess(data.user, null);
   };
 
   // Handle Registration Submit
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    if (clerkEnabled) {
+      startSignUp();
+      return;
+    }
+    if (!demoAuthEnabled) {
+      setError('Account registration is not configured. Set up Clerk authentication to continue.');
+      return;
+    }
     if (!regForm.name.trim() || !regForm.email.trim()) {
       setError('Name and email are required.');
       return;
@@ -273,7 +282,7 @@ speed={0.6}
             <p className="auth-card-subtitle">
               {activeTab === 'login'
                 ? 'Enter your credentials or choose a quick deployment profile'
-                : 'Register your rescue unit, coordinator profile, or citizen account'}
+                : 'Create a citizen profile to report hazards and receive local updates'}
             </p>
           </div>
 
@@ -302,16 +311,23 @@ speed={0.6}
           </div>
 
           {/* Error Banner */}
-          {error && (
+          {(error || authError) && (
             <div className="auth-minimal-error">
               <AlertCircle size={15} />
-              <span>{error}</span>
+              <span>{error || authError}</span>
             </div>
           )}
 
           {/* ── TAB 1: LOGIN ─────────────────────────────────── */}
           {activeTab === 'login' && (
             <div className="auth-card-body">
+              {clerkEnabled ? (
+                <div className="minimal-form">
+                  <button type="button" className="btn-primary-white" onClick={startSignIn}>
+                    Sign in securely
+                  </button>
+                </div>
+              ) : demoAuthEnabled ? (
               <form onSubmit={handleLoginSubmit} className="minimal-form">
                 <div className="input-group">
                   <label className="input-label">Email or Callsign</label>
@@ -330,14 +346,8 @@ speed={0.6}
 
                 <div className="input-group">
                   <div className="label-row">
-                    <label className="input-label">Password</label>
-                    <button
-                      type="button"
-                      className="forgot-pass-btn"
-                      onClick={() => setLoginPassword('rescue123')}
-                    >
-                      Forgot password?
-                    </button>
+                  <label className="input-label">Password</label>
+                  <span className="auth-helper-text">For access recovery, contact your organization administrator.</span>
                   </div>
                   <div className="input-field-wrap">
                     <Lock size={16} className="input-icon" />
@@ -373,31 +383,41 @@ speed={0.6}
                   )}
                 </button>
               </form>
+              ) : (
+                <p className="auth-registration-notice">
+                  Secure sign-in is not configured. You can continue to the public map as a guest.
+                </p>
+              )}
 
               {/* Minimal Divider */}
               <div className="minimal-divider">
-                <span>or quick access</span>
+                <span>public access</span>
               </div>
-
-              {/* Quick Presets Grid (2x2) */}
-              <div className="minimal-presets-grid">
-                {RESPONDER_PRESETS.map((preset) => (
-                  <button
-                    key={preset.teamCode}
-                    type="button"
-                    className="minimal-preset-card"
-                    onClick={() => handlePresetLogin(preset)}
-                    disabled={loading}
-                  >
-                    <div className="preset-card-top">
-                      <span className="preset-badge">{preset.badge}</span>
-                      <ArrowRight size={13} className="preset-arrow" />
-                    </div>
-                    <div className="preset-card-name">{preset.teamName}</div>
-                    <div className="preset-card-desc">{preset.desc}</div>
-                  </button>
-                ))}
-              </div>
+              {demoAuthEnabled && !clerkEnabled && (
+                <>
+                  <p className="auth-demo-notice">
+                    The responder shortcuts below use demo profiles for local preview only. They are not verified emergency-service accounts.
+                  </p>
+                  <div className="minimal-presets-grid">
+                    {RESPONDER_PRESETS.map((preset) => (
+                      <button
+                        key={preset.teamCode}
+                        type="button"
+                        className="minimal-preset-card"
+                        onClick={() => handlePresetLogin(preset)}
+                        disabled={loading}
+                      >
+                        <div className="preset-card-top">
+                          <span className="preset-badge">{preset.badge}</span>
+                          <ArrowRight size={13} className="preset-arrow" />
+                        </div>
+                        <div className="preset-card-name">{preset.teamName}</div>
+                        <div className="preset-card-desc">{preset.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
 
               {/* Guest Access Button */}
               <button
@@ -415,54 +435,21 @@ speed={0.6}
           {/* ── TAB 2: REGISTER ──────────────────────────────── */}
           {activeTab === 'register' && (
             <div className="auth-card-body">
+              {clerkEnabled ? (
+                <div className="auth-registration-notice">
+                  <p>Citizen accounts use secure, verified sign-in. Responder access must be provisioned by an administrator.</p>
+                  <button type="button" className="btn-primary-white" onClick={startSignUp}>
+                    Create secure account
+                  </button>
+                </div>
+              ) : !demoAuthEnabled ? (
+                <div className="auth-registration-notice">
+                  Account registration is unavailable until Clerk is configured. Guest access to the public map remains available.
+                </div>
+              ) : (
               <form onSubmit={handleRegisterSubmit} className="minimal-form">
-                {/* Role Switcher */}
-                <div className="input-group">
-                  <label className="input-label">Account Type</label>
-                  <div className="minimal-role-pills">
-                    <button
-                      type="button"
-                      className={`role-pill ${regRole === 'rescue_worker' ? 'active' : ''}`}
-                      onClick={() => {
-                        setRegRole('rescue_worker');
-                        setRegForm((p) => ({
-                          ...p,
-                          role: 'rescue_worker',
-                          organization: 'National Disaster Response Force (NDRF)',
-                        }));
-                      }}
-                    >
-                      Rescue Unit
-                    </button>
-                    <button
-                      type="button"
-                      className={`role-pill ${regRole === 'coordinator' ? 'active' : ''}`}
-                      onClick={() => {
-                        setRegRole('coordinator');
-                        setRegForm((p) => ({
-                          ...p,
-                          role: 'coordinator',
-                          organization: 'State Disaster Management Authority',
-                        }));
-                      }}
-                    >
-                      Coordinator
-                    </button>
-                    <button
-                      type="button"
-                      className={`role-pill ${regRole === 'citizen' ? 'active' : ''}`}
-                      onClick={() => {
-                        setRegRole('citizen');
-                        setRegForm((p) => ({
-                          ...p,
-                          role: 'citizen',
-                          organization: 'Public Safety Network',
-                        }));
-                      }}
-                    >
-                      Citizen
-                    </button>
-                  </div>
+                <div className="auth-registration-notice">
+                  Citizen accounts can register here. Responder and coordinator access must be provisioned by an administrator.
                 </div>
 
                 <div className="input-group">
@@ -574,6 +561,7 @@ speed={0.6}
                   )}
                 </button>
               </form>
+              )}
             </div>
           )}
         </div>

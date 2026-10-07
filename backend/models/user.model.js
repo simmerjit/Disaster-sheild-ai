@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      default: 'secure123',
+      select: false,
     },
     role: {
       type: String,

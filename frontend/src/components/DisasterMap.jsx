@@ -42,8 +42,6 @@ const defaultCenter = {
 
 const defaultZoom = 3;
 
-const googleMapsLibraries = [];
-
 export const DisasterMap = ({
   disasters = [],
   selectedDisaster,
@@ -79,7 +77,6 @@ export const DisasterMap = ({
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: apiKey,
-    libraries: googleMapsLibraries,
   });
 
   const [map, setMap] = useState(null);

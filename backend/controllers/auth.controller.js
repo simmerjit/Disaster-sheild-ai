@@ -1,75 +1,14 @@
 import mongoose from 'mongoose';
+import { clerkClient } from '@clerk/express';
 import User from '../models/user.model.js';
 import RescueTeam from '../models/rescueTeam.model.js';
+import { inMemoryRescueTeams as inMemoryTeams } from './rescue.controller.js';
+
+const demoAuthEnabled =
+  process.env.DEMO_AUTH_ENABLED === 'true' && process.env.NODE_ENV !== 'production';
 
 // In-memory fallback store for offline/local resilience
 const inMemoryUsers = new Map();
-const inMemoryTeams = new Map([
-  [
-    'NDRF-ALPHA-08',
-    {
-      _id: 'team_ndrf_08',
-      teamName: 'NDRF 8th Bn - Alpha SAR Taskforce',
-      teamCode: 'NDRF-ALPHA-08',
-      email: 'ndrf.alpha8@gov.in',
-      organization: 'National Disaster Response Force (NDRF)',
-      specialization: 'urban_search_rescue',
-      leaderName: 'Commander Vikram Singh',
-      contactPhone: '+91 1078',
-      location: { latitude: 28.6139, longitude: 77.209, address: 'Command Post Alpha, New Delhi' },
-      status: 'available',
-      stats: { missionsCompleted: 14, peopleRescued: 82, casualtiesTreated: 19 },
-    },
-  ],
-  [
-    'SDRF-FLOOD-02',
-    {
-      _id: 'team_sdrf_02',
-      teamName: 'SDRF Coastal & Marine Flood Rescue',
-      teamCode: 'SDRF-FLOOD-02',
-      email: 'sdrf.coastal@kerala.gov.in',
-      organization: 'State Disaster Response Force (SDRF)',
-      specialization: 'flood_water',
-      leaderName: 'Inspector Ananya Nair',
-      contactPhone: '+91 1070',
-      location: { latitude: 9.9312, longitude: 76.2673, address: 'Marine Command Post, Kochi' },
-      status: 'available',
-      stats: { missionsCompleted: 9, peopleRescued: 143, casualtiesTreated: 8 },
-    },
-  ],
-  [
-    'MED-EVAC-01',
-    {
-      _id: 'team_med_01',
-      teamName: 'Rapid Medical Evac & Trauma Response',
-      teamCode: 'MED-EVAC-01',
-      email: 'med.sar.delhi@emergency.org',
-      organization: 'Disaster Health Response Network',
-      specialization: 'medical_evac',
-      leaderName: 'Dr. Rohan Mehra',
-      contactPhone: '+91 108',
-      location: { latitude: 28.5672, longitude: 77.21, address: 'Trauma Operations Post, AIIMS Delhi' },
-      status: 'available',
-      stats: { missionsCompleted: 22, peopleRescued: 95, casualtiesTreated: 95 },
-    },
-  ],
-  [
-    'NDRF-CYCLONE-03',
-    {
-      _id: 'team_cyclone_03',
-      teamName: 'Eastern Cyclone & Storm Strike Unit',
-      teamCode: 'NDRF-CYCLONE-03',
-      email: 'cyclone.strike@ndrf.gov.in',
-      organization: 'National Disaster Response Force (NDRF)',
-      specialization: 'cyclone_storm',
-      leaderName: 'Assistant Commander Rajesh Patel',
-      contactPhone: '+91 1077',
-      location: { latitude: 20.2961, longitude: 85.8245, address: 'Cyclone Command Station, Bhubaneswar' },
-      status: 'available',
-      stats: { missionsCompleted: 11, peopleRescued: 68, casualtiesTreated: 12 },
-    },
-  ],
-]);
 
 const isDbReady = () => mongoose.connection.readyState === 1;
 
@@ -80,26 +19,16 @@ const isDbReady = () => mongoose.connection.readyState === 1;
  */
 export const getMe = async (req, res, next) => {
   try {
-    const clerkId = req.headers['x-clerk-user-id'] || req.query.clerkId;
-    const email = req.query.email;
+    const clerkId = req.auth?.userId;
+    if (!clerkId) {
+      return res.status(401).json({
+        success: false,
+        message: 'A verified Clerk session is required.',
+      });
+    }
 
     if (isDbReady()) {
-      let user = null;
-      if (clerkId) {
-        user = await User.findOne({ clerkId });
-      } else if (email) {
-        user = await User.findOne({ email: email.toLowerCase() });
-      }
-
-      if (!user && (clerkId || email)) {
-        user = await User.create({
-          clerkId: clerkId || `user_${Date.now()}`,
-          email: email || `${clerkId}@clerk.user`,
-          name: req.query.name || 'Emergency Responder',
-          avatar: req.query.avatar || '',
-          role: req.query.role || 'citizen',
-        });
-      }
+      const user = await User.findOne({ clerkId });
 
       let rescueTeam = null;
       if (user && (user.role === 'rescue_worker' || user.rescueTeamId)) {
@@ -112,18 +41,23 @@ export const getMe = async (req, res, next) => {
         }
       }
 
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Profile not found. Synchronize the authenticated account first.',
+        });
+      }
+
       return res.status(200).json({ success: true, user, rescueTeam });
     }
 
-    // In-memory fallback
-    const key = clerkId || email?.toLowerCase();
-    let user = inMemoryUsers.get(key) || {
-      _id: `mem_user_${Date.now()}`,
-      clerkId: clerkId || `user_${Date.now()}`,
-      email: email || 'rescuer@emergency.gov.in',
-      name: req.query.name || 'Officer On Duty',
-      role: req.query.role || 'rescue_worker',
-    };
+    const user = inMemoryUsers.get(clerkId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Profile not found. Synchronize the authenticated account first.',
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -142,18 +76,35 @@ export const getMe = async (req, res, next) => {
  */
 export const syncUser = async (req, res, next) => {
   try {
-    const {
-      clerkId,
-      email,
-      name,
-      avatar,
-      role = 'citizen',
-      phoneNumber,
-      organization,
-      specialization,
-      teamCode,
-      location,
-    } = req.body;
+    const { email: submittedEmail, name: submittedName, avatar, phoneNumber, location } = req.body;
+    const clerkId = req.auth?.userId;
+    if (!clerkId && !demoAuthEnabled) {
+      return res.status(401).json({
+        success: false,
+        message: 'Sign in with a verified account before creating a profile.',
+      });
+    }
+
+    let email = submittedEmail?.trim().toLowerCase();
+    let name = submittedName?.trim();
+    let verifiedAvatar = avatar;
+    if (clerkId) {
+      const clerkUser = await clerkClient.users.getUser(clerkId);
+      const primaryEmail = clerkUser.emailAddresses.find(
+        (address) => address.id === clerkUser.primaryEmailAddressId
+      )?.emailAddress;
+      if (!primaryEmail) {
+        return res.status(400).json({
+          success: false,
+          message: 'A primary email address is required to create a profile.',
+        });
+      }
+
+      email = primaryEmail.toLowerCase();
+      name = clerkUser.fullName || clerkUser.firstName || name;
+      verifiedAvatar = clerkUser.imageUrl;
+    }
+    const role = 'citizen';
 
     if (!email) {
       return res.status(400).json({
@@ -162,112 +113,95 @@ export const syncUser = async (req, res, next) => {
       });
     }
 
-    const cId = clerkId || `clerk_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const code = (teamCode || `SAR-${Math.floor(1000 + Math.random() * 9000)}`).toUpperCase();
+    const cId = clerkId || `demo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     if (isDbReady()) {
-      let rescueTeam = null;
-      if (role === 'rescue_worker') {
-        rescueTeam = await RescueTeam.findOneAndUpdate(
-          { $or: [{ email: email.toLowerCase() }, { teamCode: code }] },
-          {
-            $set: {
-              teamName: organization || `${name}'s Rescue Unit`,
-              teamCode: code,
-              organization: organization || 'Emergency Response Authority',
-              specialization: specialization || 'general_sar',
-              leaderName: name,
-              contactPhone: phoneNumber || '+91 1078',
-              email: email.toLowerCase(),
-              location: {
-                latitude: location?.latitude || 28.6139,
-                longitude: location?.longitude || 77.209,
-                address: location?.address || 'Field Command Post',
-                lastUpdated: new Date(),
-              },
-              status: 'available',
-            },
-          },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
+      let user = await User.findOne({ clerkId: cId });
+      if (!user) {
+        const emailOwner = await User.findOne({ email });
+        if (emailOwner) {
+          return res.status(409).json({
+            success: false,
+            message: 'This email is already linked to a different account.',
+          });
+        }
+
+        try {
+          user = await User.create({
+            clerkId: cId,
+            email,
+            name: name || 'User',
+            avatar: verifiedAvatar || '',
+            role,
+            organization: 'General Public',
+            phoneNumber,
+            ...(location && { location }),
+          });
+        } catch (error) {
+          if (error.code !== 11000) throw error;
+          user = await User.findOne({ clerkId: cId });
+          if (!user || user.email !== email) {
+            return res.status(409).json({
+              success: false,
+              message: 'This email is already linked to a different account.',
+            });
+          }
+        }
+      } else {
+        user.name = name || user.name;
+        user.avatar = verifiedAvatar || user.avatar;
+        if (phoneNumber) user.phoneNumber = phoneNumber;
+        if (location) user.location = location;
+        await user.save();
       }
 
-      const user = await User.findOneAndUpdate(
-        { $or: [{ clerkId: cId }, { email: email.toLowerCase() }] },
-        {
-          $set: {
-            clerkId: cId,
-            email: email.toLowerCase(),
-            name: name || 'User',
-            avatar: avatar || '',
-            role,
-            organization: organization || (role === 'rescue_worker' ? 'Rescue Services' : 'General Public'),
-            specialization: specialization || 'general_sar',
-            teamCode: rescueTeam?.teamCode || code,
-            rescueTeamId: rescueTeam?._id || null,
-            ...(phoneNumber && { phoneNumber }),
-            ...(location && { location }),
-          },
-        },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
+      const rescueTeam =
+        user.role === 'rescue_worker' && user.rescueTeamId
+          ? await RescueTeam.findById(user.rescueTeamId)
+          : null;
 
-      return res.status(200).json({
-        success: true,
-        user,
-        rescueTeam,
+      return res.status(200).json({ success: true, user, rescueTeam });
+    }
+
+    const existingUser = inMemoryUsers.get(cId);
+    if (existingUser && existingUser.email !== email) {
+      return res.status(409).json({
+        success: false,
+        message: 'This account is already linked to a different email.',
+      });
+    }
+    const emailOwner = inMemoryUsers.get(email);
+    if (emailOwner && emailOwner.clerkId !== cId) {
+      return res.status(409).json({
+        success: false,
+        message: 'This email is already linked to a different account.',
       });
     }
 
-    // In-memory fallback
-    const mockTeam =
-      role === 'rescue_worker'
-        ? {
-            _id: `mem_team_${Date.now()}`,
-            teamName: organization || `${name}'s Rescue Unit`,
-            teamCode: code,
-            organization: organization || 'National Disaster Response Force (NDRF)',
-            specialization: specialization || 'general_sar',
-            leaderName: name,
-            contactPhone: phoneNumber || '+91 1078',
-            email: email.toLowerCase(),
-            location: {
-              latitude: location?.latitude || 28.6139,
-              longitude: location?.longitude || 77.209,
-              address: location?.address || 'Field Command Post',
-            },
-            status: 'available',
-            stats: { missionsCompleted: 0, peopleRescued: 0, casualtiesTreated: 0 },
-          }
-        : null;
-
-    if (mockTeam) {
-      inMemoryTeams.set(code, mockTeam);
-    }
-
     const mockUser = {
-      _id: `mem_user_${Date.now()}`,
+      ...(existingUser || {}),
+      _id: existingUser?._id || `mem_user_${Date.now()}`,
       clerkId: cId,
-      email: email.toLowerCase(),
-      name: name || 'User',
-      avatar: avatar || '',
-      role,
-      organization: organization || (role === 'rescue_worker' ? 'Rescue Services' : 'General Public'),
-      specialization: specialization || 'general_sar',
-      teamCode: code,
-      rescueTeamId: mockTeam?._id || null,
-      phoneNumber: phoneNumber || '',
-      location: location || { latitude: 28.6139, longitude: 77.209, address: 'Field Base' },
+      email,
+      name: name || existingUser?.name || 'User',
+      avatar: verifiedAvatar || existingUser?.avatar || '',
+      role: existingUser?.role || role,
+      organization: existingUser?.organization || 'General Public',
+      phoneNumber: phoneNumber || existingUser?.phoneNumber || '',
+      location: location || existingUser?.location || {
+        latitude: 28.6139,
+        longitude: 77.209,
+        address: 'New Delhi, India',
+      },
     };
 
     inMemoryUsers.set(cId, mockUser);
-    inMemoryUsers.set(email.toLowerCase(), mockUser);
-    inMemoryUsers.set(code, mockUser);
+    inMemoryUsers.set(email, mockUser);
 
     res.status(200).json({
       success: true,
       user: mockUser,
-      rescueTeam: mockTeam,
+      rescueTeam: null,
     });
   } catch (error) {
     next(error);
@@ -275,13 +209,19 @@ export const syncUser = async (req, res, next) => {
 };
 
 /**
- * @desc    Direct Email / Callsign User Login
+ * @desc    Direct Email / Callsign User Login (local demo only)
  * @route   POST /api/auth/login
  */
 export const loginUser = async (req, res, next) => {
   try {
-    const { emailOrCode } = req.body;
+    if (!demoAuthEnabled) {
+      return res.status(403).json({
+        success: false,
+        message: 'Passwordless demo login is disabled. Sign in through Clerk instead.',
+      });
+    }
 
+    const { emailOrCode } = req.body;
     if (!emailOrCode) {
       return res.status(400).json({
         success: false,
@@ -301,30 +241,30 @@ export const loginUser = async (req, res, next) => {
       });
 
       let rescueTeam = null;
-
-      // Check if it matches a RescueTeam code directly
       if (!user) {
         rescueTeam = await RescueTeam.findOne({
           $or: [{ teamCode: query.toUpperCase() }, { email: query.toLowerCase() }],
         });
-
         if (rescueTeam) {
-          user = await User.findOneAndUpdate(
-            { email: rescueTeam.email },
-            {
-              $set: {
-                name: rescueTeam.leaderName || rescueTeam.teamName,
+          user = await User.findOne({ email: rescueTeam.email });
+          if (!user && demoAuthEnabled) {
+            try {
+              user = await User.create({
+                clerkId: `demo_${rescueTeam.teamCode}`,
                 email: rescueTeam.email,
+                name: rescueTeam.leaderName || rescueTeam.teamName,
                 role: 'rescue_worker',
                 organization: rescueTeam.organization,
                 specialization: rescueTeam.specialization,
                 teamCode: rescueTeam.teamCode,
                 rescueTeamId: rescueTeam._id,
                 location: rescueTeam.location,
-              },
-            },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-          );
+              });
+            } catch (error) {
+              if (error.code !== 11000) throw error;
+              user = await User.findOne({ email: rescueTeam.email });
+            }
+          }
         }
       } else if (user.role === 'rescue_worker' || user.rescueTeamId) {
         rescueTeam =
@@ -335,7 +275,7 @@ export const loginUser = async (req, res, next) => {
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'Account not found. Please verify your credentials or register.',
+          message: 'Demo account not found. Verify the profile identifier.',
         });
       }
 
@@ -347,61 +287,34 @@ export const loginUser = async (req, res, next) => {
       });
     }
 
-    // In-memory fallback check
     const queryUpper = query.toUpperCase();
     const queryLower = query.toLowerCase();
-
-    let team = inMemoryTeams.get(queryUpper) || inMemoryTeams.get(queryLower);
     let user = inMemoryUsers.get(queryLower) || inMemoryUsers.get(queryUpper) || inMemoryUsers.get(query);
-
-    if (!user && team) {
-      user = {
-        _id: `mem_user_${team._id}`,
-        name: team.leaderName || team.teamName,
-        email: team.email,
-        role: 'rescue_worker',
-        organization: team.organization,
-        specialization: team.specialization,
-        teamCode: team.teamCode,
-        rescueTeamId: team._id,
-        location: team.location,
-      };
-      inMemoryUsers.set(team.email, user);
-      inMemoryUsers.set(team.teamCode, user);
+    let rescueTeam = null;
+    if (!user) {
+      rescueTeam = inMemoryTeams.get(queryUpper) || null;
+      if (rescueTeam) {
+        user = {
+          _id: `demo_user_${rescueTeam._id}`,
+          clerkId: `demo_${rescueTeam.teamCode}`,
+          name: rescueTeam.leaderName || rescueTeam.teamName,
+          email: rescueTeam.email,
+          role: 'rescue_worker',
+          organization: rescueTeam.organization,
+          specialization: rescueTeam.specialization,
+          teamCode: rescueTeam.teamCode,
+          rescueTeamId: rescueTeam._id,
+          location: rescueTeam.location,
+        };
+        inMemoryUsers.set(queryUpper, user);
+        inMemoryUsers.set(queryLower, user);
+        inMemoryUsers.set(rescueTeam.email.toLowerCase(), user);
+      }
     }
-
-    // If query matches standard preset codes
-    if (!user && (queryUpper.startsWith('NDRF-') || queryUpper.startsWith('SDRF-') || queryUpper.startsWith('MED-') || queryUpper.startsWith('SAR-'))) {
-      user = {
-        _id: `mem_user_${queryUpper}`,
-        name: `Officer in Charge (${queryUpper})`,
-        email: `${queryLower}@emergency.gov.in`,
-        role: 'rescue_worker',
-        organization: 'National Disaster Response Force (NDRF)',
-        specialization: 'urban_search_rescue',
-        teamCode: queryUpper,
-        location: { latitude: 28.6139, longitude: 77.209, address: 'Command Post' },
-      };
-      team = {
-        _id: `mem_team_${queryUpper}`,
-        teamName: `${queryUpper} Tactical Taskforce`,
-        teamCode: queryUpper,
-        organization: 'National Disaster Response Force (NDRF)',
-        specialization: 'urban_search_rescue',
-        leaderName: user.name,
-        email: user.email,
-        location: user.location,
-        status: 'available',
-        stats: { missionsCompleted: 8, peopleRescued: 45, casualtiesTreated: 12 },
-      };
-      inMemoryTeams.set(queryUpper, team);
-      inMemoryUsers.set(queryUpper, user);
-    }
-
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'Account not found. Please verify your credentials or register a new unit.',
+        message: 'Demo account not found. Verify the profile identifier.',
       });
     }
 
@@ -409,7 +322,7 @@ export const loginUser = async (req, res, next) => {
       success: true,
       message: `Welcome back, ${user.name}`,
       user,
-      rescueTeam: team || null,
+      rescueTeam: rescueTeam || inMemoryTeams.get(user.teamCode) || null,
     });
   } catch (error) {
     next(error);

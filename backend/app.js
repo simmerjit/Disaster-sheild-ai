@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import { clerkMiddleware } from '@clerk/express';
 
 // Route imports
 import authRoutes from './routes/auth.routes.js';
@@ -23,17 +24,54 @@ import { globalRateLimiter } from './middleware/rateLimiter.js';
 import { disasterFeedCache, chatResponseCache } from './utils/cache.js';
 
 const app = express();
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:4173,http://127.0.0.1:4173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // ── Core Middleware ──────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  const origin = req.get('origin');
+  if (origin && !allowedOrigins.includes(origin)) {
+    return res.status(403).json({
+      success: false,
+      message: 'This origin is not allowed to access the API.',
+    });
+  }
+  next();
+});
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      callback(null, !origin || allowedOrigins.includes(origin));
+    },
     credentials: true,
   })
 );
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 app.use(cookieParser());
+const hasClerkSecret = Boolean(process.env.CLERK_SECRET_KEY);
+const hasClerkPublishableKey = Boolean(process.env.CLERK_PUBLISHABLE_KEY);
+if (hasClerkSecret !== hasClerkPublishableKey) {
+  throw new Error('Set both CLERK_SECRET_KEY and CLERK_PUBLISHABLE_KEY, or leave both unset.');
+}
+if (process.env.NODE_ENV === 'production' && !hasClerkSecret) {
+  throw new Error('Clerk keys are required when NODE_ENV=production.');
+}
+if (
+  process.env.NODE_ENV === 'production' &&
+  (!process.env.CLERK_SECRET_KEY.startsWith('sk_live_') ||
+    !process.env.CLERK_PUBLISHABLE_KEY.startsWith('pk_live_'))
+) {
+  throw new Error('Production requires Clerk live keys (sk_live_ and pk_live_).');
+}
+if (process.env.NODE_ENV === 'production' && !process.env.CORS_ORIGINS) {
+  throw new Error('CORS_ORIGINS must list the trusted frontend origins in production.');
+}
+if (hasClerkSecret) {
+  app.use(clerkMiddleware());
+}
 app.use(globalRateLimiter); // Traffic spike & DDoS protection
 
 // ── Routes ───────────────────────────────────────────────────────────────────

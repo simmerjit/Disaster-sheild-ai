@@ -7022,6 +7022,248 @@
 /* ── 3. SMALL TABLET & PHABLET ADAPTATIONS (<= 860px) ────────────────────── */
 @media (max-width: 860px) {
   /* App Header Responsive 2-Row Layout */
+.report-incident-btn {
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #d7f4ff;
+}
+
+.report-incident-btn:hover {
+  background: rgba(14, 165, 233, 0.2);
+  border-color: rgba(125, 211, 252, 0.65);
+  color: #ffffff;
+}
+
+.incident-report-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.76);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 24px;
+}
+
+.incident-report-modal {
+  width: min(980px, 92vw);
+  max-height: 88vh;
+  background: rgba(10, 15, 25, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 24px;
+  box-shadow: 0 28px 80px rgba(2, 6, 23, 0.75);
+  overflow: hidden;
+}
+
+.incident-report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.72));
+}
+
+.incident-report-header h3 {
+  margin: 4px 0 0;
+  font-size: 1.2rem;
+  color: #f8fafc;
+}
+
+.incident-report-kicker {
+  margin: 0;
+  color: #7dd3fc;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.modal-close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.7);
+  color: #e2e8f0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.incident-report-body {
+  display: grid;
+  grid-template-columns: 1.6fr 0.9fr;
+  gap: 20px;
+  padding: 22px;
+}
+
+.incident-report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.field-label input,
+.field-label textarea {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.7);
+  border-radius: 12px;
+  color: #f8fafc;
+  font: inherit;
+  padding: 11px 12px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.field-label input::placeholder,
+.field-label textarea::placeholder {
+  color: #64748b;
+}
+
+.field-label input:focus,
+.field-label textarea:focus {
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+}
+
+.incident-report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.incident-location-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(125, 211, 252, 0.25);
+  color: #dff6ff;
+  font-size: 0.78rem;
+}
+
+.incident-form-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+}
+
+.incident-form-message.error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+
+.incident-form-message.success {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: #bbf7d0;
+}
+
+.incident-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  color: white;
+  font-weight: 700;
+  padding: 12px 16px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 10px 25px rgba(14, 165, 233, 0.3);
+}
+
+.incident-submit-btn:hover {
+  transform: translateY(-1px);
+}
+
+.incident-submit-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.incident-report-sidepanel {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.incident-report-sidepanel h4 {
+  margin: 0 0 12px;
+  color: #f8fafc;
+  font-size: 0.98rem;
+}
+
+.incident-side-empty {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+
+.incident-side-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.incident-side-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 10px;
+}
+
+.incident-side-list strong {
+  display: block;
+  color: #f8fafc;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.incident-side-list span {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(14, 165, 233, 0.1);
+  color: #bae6fd;
+}
+
+@media (max-width: 860px) {
   .app-header {
     display: flex;
     flex-wrap: wrap;

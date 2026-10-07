@@ -33,7 +33,6 @@ export const DEFAULT_TEAMS = [
     leaderName: 'Cmdr. Rajesh Verma',
     contactPhone: '+91 98110 12345',
     email: 'ndrf.alpha8@gov.in',
-    password: 'rescue123password',
     capacityMembers: 24,
     equipment: ['Canine SAR Units', 'Acoustic Life Detectors', 'Hydraulic Spreaders', 'Thermal Cameras', 'Inflatable Boats'],
     status: 'available',
@@ -54,7 +53,6 @@ export const DEFAULT_TEAMS = [
     leaderName: 'Capt. Arun Nambiar',
     contactPhone: '+91 94470 54321',
     email: 'sdrf.coastal@kerala.gov.in',
-    password: 'rescue123password',
     capacityMembers: 16,
     equipment: ['Gemini Inflatable Boats', 'Diver Outfits', 'Flood Sonar', 'Life Jackets x 100', 'Medical Kits'],
     status: 'available',
@@ -75,7 +73,6 @@ export const DEFAULT_TEAMS = [
     leaderName: 'Dr. Priya Sharma (Chief Medical Officer)',
     contactPhone: '+91 98200 99881',
     email: 'med.sar.delhi@emergency.org',
-    password: 'rescue123password',
     capacityMembers: 10,
     equipment: ['Mobile ICU Ambulance', 'Portable Ventilators', 'Blood Supply Units', 'Trauma Surgical Kits'],
     status: 'available',
@@ -96,7 +93,6 @@ export const DEFAULT_TEAMS = [
     leaderName: 'Maj. S. Patra',
     contactPhone: '+91 97760 11223',
     email: 'cyclone.strike@ndrf.gov.in',
-    password: 'rescue123password',
     capacityMembers: 20,
     equipment: ['Tree Cutters', 'Heavy Dewatering Pumps', 'High-Clearance Rescue Trucks', 'Satellite Comms'],
     status: 'available',
@@ -669,6 +665,39 @@ export const handleMissionAction = async (req, res, next) => {
         message: 'teamId and targetId are required.',
       });
     }
+    if (!['accept_mission', 'on_scene', 'complete_mission'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'Unsupported mission action.' });
+    }
+    if (action === 'complete_mission') {
+      const rescued = Number(rescuedCount ?? 0);
+      const injured = Number(injuredCount ?? 0);
+      if (
+        !Number.isInteger(rescued) ||
+        rescued < 0 ||
+        rescued > 10000 ||
+        !Number.isInteger(injured) ||
+        injured < 0 ||
+        injured > 10000
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: 'Rescued and injured counts must be whole numbers between 0 and 10000.',
+        });
+      }
+    }
+    if (
+      ['accept_mission', 'on_scene'].includes(action) &&
+      (typeof req.body.latitude !== 'number' ||
+        !Number.isFinite(req.body.latitude) ||
+        req.body.latitude < -90 ||
+        req.body.latitude > 90 ||
+        typeof req.body.longitude !== 'number' ||
+        !Number.isFinite(req.body.longitude) ||
+        req.body.longitude < -180 ||
+        req.body.longitude > 180)
+    ) {
+      return res.status(400).json({ success: false, message: 'Valid mission coordinates are required.' });
+    }
 
     let team = null;
     if (isDbReady()) {
@@ -686,7 +715,9 @@ export const handleMissionAction = async (req, res, next) => {
           break;
         }
       }
-      if (!team) team = DEFAULT_TEAMS[0];
+      if (!team) {
+        return res.status(404).json({ success: false, message: 'Rescue team not found.' });
+      }
     }
 
     if (action === 'accept_mission') {
@@ -724,15 +755,13 @@ export const handleMissionAction = async (req, res, next) => {
       team.status = 'on_scene';
       if (typeof team.save === 'function') await team.save();
     } else if (action === 'complete_mission') {
+      const safeRescuedCount = Number(rescuedCount ?? 0);
+      const safeInjuredCount = Number(injuredCount ?? 0);
       team.status = 'available';
       team.currentMission = null;
       team.stats.missionsCompleted = (team.stats.missionsCompleted || 0) + 1;
-      if (rescuedCount) {
-        team.stats.peopleRescued = (team.stats.peopleRescued || 0) + Number(rescuedCount);
-      }
-      if (injuredCount) {
-        team.stats.casualtiesTreated = (team.stats.casualtiesTreated || 0) + Number(injuredCount);
-      }
+      team.stats.peopleRescued = (team.stats.peopleRescued || 0) + safeRescuedCount;
+      team.stats.casualtiesTreated = (team.stats.casualtiesTreated || 0) + safeInjuredCount;
       if (typeof team.save === 'function') await team.save();
 
       if (targetId.startsWith('sos_')) {

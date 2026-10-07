@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { authorize, protect, requireAuth } from '../middleware/auth.middleware.js';
 import {
   getShelters,
   getRecommendedShelter,
@@ -32,12 +33,12 @@ router.get('/:id', getShelterById);
 // ── Mutation Endpoints (Admin / Testing) ───────────────────────────────────────
 
 // POST /api/shelters
-router.post('/', createShelter);
+router.post('/', protect, requireAuth, authorize('admin', 'coordinator'), createShelter);
 
 // PUT /api/shelters/:id
-router.put('/:id', updateShelter);
+router.put('/:id', protect, requireAuth, authorize('admin', 'coordinator'), updateShelter);
 
 // DELETE /api/shelters/:id
-router.delete('/:id', deleteShelter);
+router.delete('/:id', protect, requireAuth, authorize('admin'), deleteShelter);
 
 export default router;

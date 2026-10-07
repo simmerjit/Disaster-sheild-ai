@@ -1,6 +1,3 @@
-// report.routes.js
-// TODO: Wire up report controller handlers to their routes.
-
 import { Router } from 'express';
 import {
   getAllReports,
@@ -9,22 +6,15 @@ import {
   updateReport,
   deleteReport,
 } from '../controllers/report.controller.js';
+import { protect, requireAuth, authorize } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
-// GET    /api/reports
+// Public reads remain accessible; writes can attach authenticated user context when available.
 router.get('/', getAllReports);
-
-// GET    /api/reports/:id
 router.get('/:id', getReportById);
-
-// POST   /api/reports
-router.post('/', createReport);
-
-// PUT    /api/reports/:id
-router.put('/:id', updateReport);
-
-// DELETE /api/reports/:id
-router.delete('/:id', deleteReport);
+router.post('/', protect, createReport);
+router.put('/:id', protect, requireAuth, authorize('citizen', 'admin', 'coordinator', 'rescue_worker'), updateReport);
+router.delete('/:id', protect, requireAuth, authorize('admin', 'coordinator', 'rescue_worker'), deleteReport);
 
 export default router;

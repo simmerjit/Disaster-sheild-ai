@@ -159,8 +159,7 @@ export const getRecommendedShelter = wrapAsync(async (req, res, next) => {
  * @access  Public
  */
 export const getShelterStats = wrapAsync(async (req, res, next) => {
-  // Aggregate directly from MongoDB
-  const allShelters = await Shelter.find();
+  const allShelters = isDbReady() ? await Shelter.find() : [];
 
   let totalShelters = allShelters.length;
   let totalCapacity = 0;

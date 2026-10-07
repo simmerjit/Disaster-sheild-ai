@@ -5,6 +5,7 @@ import DisasterMapPage from './pages/DisasterMapPage';
 import RescueTeamDashboard from './components/RescueTeamDashboard';
 import SurvivalAcademyPage from './pages/SurvivalAcademyPage';
 import './App.css';
+import './production-ui.css';
 
 function App() {
   const {

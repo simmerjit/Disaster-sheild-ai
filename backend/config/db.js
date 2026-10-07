@@ -130,6 +130,10 @@ const connectDB = async () => {
     }
   } catch (error) {
     isConnected = false;
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    }
+
     console.warn(`⚠️ [MongoDB] Connection note: ${error.message}`);
     console.warn(`💡 [DisasterShield] Running in resilient fallback mode (API and live feeds operational).`);
     console.warn(`💡 If using MongoDB Atlas, verify that Network Access allows 0.0.0.0/0 or your current IP.`);

@@ -47,7 +47,7 @@ const rescueTeamSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      default: 'rescue123',
+      select: false,
     },
     capacityMembers: {
       type: Number,

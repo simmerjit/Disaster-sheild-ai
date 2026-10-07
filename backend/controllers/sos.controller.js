@@ -167,23 +167,81 @@ export const createSOS = async (req, res, next) => {
       disasterId,
     } = req.body;
 
-    if (!message || latitude == null || longitude == null) {
+    const numericLatitude = Number(latitude);
+    const numericLongitude = Number(longitude);
+    const numericPeopleTrapped = peopleTrapped == null ? 1 : Number(peopleTrapped);
+    const allowedUrgencies = ['critical', 'high', 'medium', 'low'];
+    const allowedEmergencyTypes = [
+      'flood_trapped',
+      'building_collapse',
+      'medical_critical',
+      'fire_hazard',
+      'general_distress',
+    ];
+
+    if (typeof message !== 'string' || !message.trim() || latitude == null || longitude == null) {
       return res.status(400).json({
         success: false,
         message: 'Message, latitude, and longitude are required to dispatch SOS.',
       });
     }
 
+    if (message.trim().length > 2000) {
+      return res.status(400).json({ success: false, message: 'SOS message must be 2000 characters or fewer.' });
+    }
+
+    if (
+      !Number.isFinite(numericLatitude) ||
+      numericLatitude < -90 ||
+      numericLatitude > 90 ||
+      !Number.isFinite(numericLongitude) ||
+      numericLongitude < -180 ||
+      numericLongitude > 180
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude must be between -90 and 90 and longitude between -180 and 180.',
+      });
+    }
+
+    if (!Number.isInteger(numericPeopleTrapped) || numericPeopleTrapped < 1 || numericPeopleTrapped > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'People trapped must be a whole number between 1 and 1000.',
+      });
+    }
+
+    if (urgency && !allowedUrgencies.includes(urgency)) {
+      return res.status(400).json({ success: false, message: 'Invalid SOS urgency.' });
+    }
+
+    if (emergencyType && !allowedEmergencyTypes.includes(emergencyType)) {
+      return res.status(400).json({ success: false, message: 'Invalid emergency type.' });
+    }
+
+    for (const [field, value, maxLength] of [
+      ['senderName', senderName, 120],
+      ['senderPhone', senderPhone, 40],
+      ['address', address, 300],
+    ]) {
+      if (value != null && (typeof value !== 'string' || value.length > maxLength)) {
+        return res.status(400).json({
+          success: false,
+          message: `${field} must be a string of ${maxLength} characters or fewer.`,
+        });
+      }
+    }
+
     if (isDbReady()) {
       try {
         const newSOS = await SOS.create({
-          message,
+          message: message.trim(),
           senderName: senderName || 'Citizen in Danger',
           senderPhone: senderPhone || 'Unknown',
-          latitude: Number(latitude),
-          longitude: Number(longitude),
+          latitude: numericLatitude,
+          longitude: numericLongitude,
           address: address || 'Distress Coordinates',
-          peopleTrapped: peopleTrapped || 1,
+          peopleTrapped: numericPeopleTrapped,
           urgency: urgency || 'critical',
           emergencyType: emergencyType || 'general_distress',
           status: 'pending',
@@ -205,13 +263,13 @@ export const createSOS = async (req, res, next) => {
     const mockId = `sos_${Date.now()}`;
     const mockSOS = {
       _id: mockId,
-      message,
+      message: message.trim(),
       senderName: senderName || 'Citizen in Danger',
       senderPhone: senderPhone || 'Unknown',
-      latitude: Number(latitude),
-      longitude: Number(longitude),
+      latitude: numericLatitude,
+      longitude: numericLongitude,
       address: address || 'Distress Coordinates',
-      peopleTrapped: peopleTrapped || 1,
+      peopleTrapped: numericPeopleTrapped,
       urgency: urgency || 'critical',
       emergencyType: emergencyType || 'general_distress',
       status: 'pending',
@@ -238,11 +296,47 @@ export const createSOS = async (req, res, next) => {
 export const updateSOS = async (req, res, next) => {
   try {
     const { status, assignedTeam, assignedTeamName } = req.body;
+    const validStatuses = ['pending', 'dispatched', 'acknowledged', 'resolved'];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid SOS status.' });
+    }
+
     const updateData = {};
 
     if (status) updateData.status = status;
     if (assignedTeam) updateData.assignedTeam = assignedTeam;
     if (assignedTeamName) updateData.assignedTeamName = assignedTeamName;
+
+    const isRescueWorker = req.user?.role === 'rescue_worker';
+    const ownTeamId = req.user?.rescueTeamId || req.user?.teamCode;
+    if (isRescueWorker) {
+      if (!ownTeamId) {
+        return res.status(403).json({ success: false, message: 'No rescue team is linked to this account.' });
+      }
+      if (assignedTeam && String(assignedTeam) !== String(ownTeamId)) {
+        return res.status(403).json({ success: false, message: 'You may only assign your own rescue team.' });
+      }
+
+      if (isDbReady()) {
+        const existingSOS = await SOS.findById(req.params.id);
+        if (!existingSOS) {
+          return res.status(404).json({ success: false, message: 'SOS alert not found.' });
+        }
+        if (existingSOS.assignedTeam && String(existingSOS.assignedTeam) !== String(ownTeamId)) {
+          return res.status(403).json({ success: false, message: 'This SOS alert is assigned to another team.' });
+        }
+        updateData.assignedTeam = ownTeamId;
+      } else {
+        const existingSOS = inMemorySOS.get(req.params.id);
+        if (!existingSOS) {
+          return res.status(404).json({ success: false, message: 'SOS alert not found.' });
+        }
+        if (existingSOS.assignedTeam && String(existingSOS.assignedTeam) !== String(ownTeamId)) {
+          return res.status(403).json({ success: false, message: 'This SOS alert is assigned to another team.' });
+        }
+        updateData.assignedTeam = ownTeamId;
+      }
+    }
 
     if (isDbReady()) {
       try {

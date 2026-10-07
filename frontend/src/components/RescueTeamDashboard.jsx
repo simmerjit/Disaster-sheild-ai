@@ -38,6 +38,7 @@ import {
   ArrowRight,
   ShieldCheck,
   LifeBuoy,
+  KeyRound,
 } from 'lucide-react';
 import {
   fetchPrioritizedRescues,
@@ -723,7 +724,22 @@ export const RescueTeamDashboard = ({
             </div>
           </div>
 
-          {!isLoaded ? (
+          {!apiKey ? (
+            <div className="map-config-fallback">
+              <KeyRound size={28} />
+              <h3>Tactical map is not configured</h3>
+              <p>
+                Add <code>VITE_GOOGLE_MAPS_API_KEY</code> to <code>frontend/.env</code> to enable the
+                interactive response map. The priority queue remains available.
+              </p>
+            </div>
+          ) : loadError ? (
+            <div className="map-config-fallback" role="alert">
+              <AlertTriangle size={28} />
+              <h3>Unable to load the tactical map</h3>
+              <p>{loadError.message || 'Check the Google Maps key and allowed referrer settings.'}</p>
+            </div>
+          ) : !isLoaded ? (
             <div className="map-loading-overlay">
               <div className="loading-box">
                 <span className="rescue-spinner"></span>

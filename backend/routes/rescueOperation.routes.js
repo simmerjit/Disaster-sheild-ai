@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { authorize, protect, requireAuth } from '../middleware/auth.middleware.js';
 import {
   getAllRescueOperations,
   getRescueOperationById,
@@ -16,12 +17,12 @@ router.get('/', getAllRescueOperations);
 router.get('/:id', getRescueOperationById);
 
 // POST   /api/rescue-operations
-router.post('/', createRescueOperation);
+router.post('/', protect, requireAuth, authorize('admin', 'coordinator', 'rescue_worker'), createRescueOperation);
 
 // PUT    /api/rescue-operations/:id
-router.put('/:id', updateRescueOperation);
+router.put('/:id', protect, requireAuth, authorize('admin', 'coordinator', 'rescue_worker'), updateRescueOperation);
 
 // DELETE /api/rescue-operations/:id
-router.delete('/:id', deleteRescueOperation);
+router.delete('/:id', protect, requireAuth, authorize('admin', 'coordinator'), deleteRescueOperation);
 
 export default router;
